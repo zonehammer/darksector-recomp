@@ -48,6 +48,10 @@ namespace wet::options
     void SetGodMode(bool v);
     bool InfiniteAmmo();
     void SetInfiniteAmmo(bool v);
+    // Dark Sector: particle effects (sparks, the glaive's hits) updated at most
+    // 30 times a second above 30 FPS (ds_effects.cpp), darksector.ini effects_30fps.
+    bool Effects30();
+    void SetEffects30(bool v);
     // Dark Sector camera field of view in degrees: the game's Graphics.FOV setting (65 = its own).
     int CameraFov();
     void SetCameraFov(int v);

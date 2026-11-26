@@ -1100,6 +1100,11 @@ namespace
         {
             if (!BeginRows("game"))
                 return;
+            bool fx30 = wet::options::Effects30();
+            if (RowCheck("Effects at 30 FPS", &fx30,
+                         "Above 30 FPS: sparks and other particle effects (the glaive hitting walls) update 30 times a second, "
+                         "as the game was made for. Off: every frame (can flash on screen at high frame rates)."))
+                wet::options::SetEffects30(fx30);
             for (int i = 0; i < wet::gamesettings::SwitchCount(); i++)
             {
                 bool on = wet::gamesettings::SwitchOn(i);
