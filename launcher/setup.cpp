@@ -13,6 +13,16 @@
 // Running it again updates and rebuilds (the disc is only needed the first time).
 // The launcher's Update button runs it as: DarkSectorSetup.exe --update <folder>.
 //
+// Without a window, for game launchers such as RecompLauncher (recomplauncher.json;
+// nothing changes when these aren't given):
+//   --prepare --game=<ISO or extracted folder> --out <folder>
+//       the same install, no window and no questions: prints "progress 0.42 Text"
+//       lines, builds this Setup's own release (not the latest), and exits 0 when the
+//       game is built (or already was, for this version), else 1 with the reason last.
+//   --play <folder> [arguments...]
+//       starts the game built there (the arguments go to it) and returns its exit
+//       code; 3 if it isn't built.
+//
 // Setup itself contains nothing from the game, so it can be shared; the build
 // it makes can't (it contains code translated from the player's disc).
 #ifndef UNICODE
@@ -58,6 +68,10 @@ namespace
     HWND s_window;
     HFONT s_font, s_titleFont;
     bool s_updateMode = false;          // --update: started by the launcher's Update button
+    bool s_headless = false;            // --prepare: no window, progress lines on stdout
+    HANDLE s_stdout = INVALID_HANDLE_VALUE;
+    double s_stageBase = 0, s_stageSpan = 0, s_shown = -1;   // --prepare's progress (0-1)
+    std::wstring s_stageText;
     bool s_showLog = false;
     std::thread s_worker;
     std::atomic<bool> s_busy{ false }, s_cancel{ false };
@@ -98,8 +112,44 @@ namespace
 
     // ---- Messages to the window (from the worker) ----
 
+    // --prepare: a line to stdout (UTF-8).
+    void Print(const std::wstring& line)
+    {
+        if (s_stdout == INVALID_HANDLE_VALUE || !s_stdout)
+            return;
+        std::string text = Narrow(line) + "\n";
+        DWORD written;
+        WriteFile(s_stdout, text.data(), DWORD(text.size()), &written, nullptr);
+    }
+
+    // --prepare: "progress <0-1> <text>", never going backwards.
+    void PrintProgress(double withinStage)
+    {
+        double p = std::clamp(s_stageBase + s_stageSpan * std::clamp(withinStage, 0.0, 1.0), 0.0, 1.0);
+        if (p < s_shown + 0.005 && withinStage > 0)
+            return;
+        s_shown = std::max(s_shown, p);
+        wchar_t text[32];
+        std::swprintf(text, 32, L"progress %.3f ", s_shown);
+        Print(text + s_stageText);
+    }
+
+    // --prepare: the part of the whole a stage covers.
+    void Stage(double base, double span) { s_stageBase = base; s_stageSpan = span; }
+
     void Post(UINT msg, const std::wstring& text, WPARAM w = 0)
     {
+        if (s_headless)
+        {
+            if (msg == WM_APP_LOG)
+                Print(text);
+            else if (msg == WM_APP_STATUS)
+            {
+                s_stageText = text;
+                PrintProgress(0);
+            }
+            return;
+        }
         PostMessageW(s_window, msg, w, reinterpret_cast<LPARAM>(new std::wstring(text)));
     }
 
@@ -113,7 +163,16 @@ namespace
         Post(WM_APP_LOG, line);
     }
     void Status(const std::wstring& s) { Log(L"== " + s); Post(WM_APP_STATUS, s); }
-    void Progress(int percent) { PostMessageW(s_window, WM_APP_PROGRESS, WPARAM(percent), 0); }   // -1 = busy
+    void Progress(int percent)   // -1 = busy
+    {
+        if (s_headless)
+        {
+            if (percent >= 0)
+                PrintProgress(percent / 100.0);
+            return;
+        }
+        PostMessageW(s_window, WM_APP_PROGRESS, WPARAM(percent), 0);
+    }
 
     struct Failed { std::wstring why; };
     [[noreturn]] void Fail(const std::wstring& why) { throw Failed{ why }; }
@@ -428,6 +487,12 @@ namespace
         bool shortcut = true, cleanup = false, deleteIso = false;
     };
 
+    // --prepare: which version the build in a folder was made by (written once it
+    // has finished; removed before a build starts).
+    fs::path BuiltMarker(const fs::path& repo) { return repo / L"build" / L"built-by-setup.txt"; }
+
+    bool s_installOk = false;   // the last Install's result
+
     void Install(Choices c)
     {
         const fs::path& iso = c.source;
@@ -452,7 +517,10 @@ namespace
             ULARGE_INTEGER freeBytes{};
             GetDiskFreeSpaceExW(root.c_str(), &freeBytes, nullptr, nullptr);
             uint64_t need = (haveGame ? 6ull : 12ull) << 30;
-            if (freeBytes.QuadPart && freeBytes.QuadPart < need &&
+            if (s_headless && freeBytes.QuadPart && freeBytes.QuadPart < need)
+                Log(L"Only " + std::to_wstring(freeBytes.QuadPart >> 30) + L" GB free on this drive; about " +
+                    std::to_wstring(need >> 30) + L" GB is needed. Trying anyway.");
+            else if (freeBytes.QuadPart && freeBytes.QuadPart < need &&
                 MessageBoxW(s_window,
                             (L"The drive has " + std::to_wstring(freeBytes.QuadPart >> 30) + L" GB free; about " +
                              std::to_wstring(need >> 30) + L" GB is needed. Continue anyway?").c_str(),
@@ -460,6 +528,7 @@ namespace
                 Fail(L"Not enough disk space.");
 
             // 1. Tools
+            Stage(0, 0.15);
             Status(L"Checking the tools");
             fs::path tools = root / L"tools";
             fs::create_directories(tools, ec);
@@ -478,8 +547,11 @@ namespace
             // latest code). A copy that's on a branch (someone working on the
             // code) is only fast-forwarded, and one with changes is left as it is.
             Progress(-1);
+            Stage(0.15, 0.05);
             std::string version = WET_VERSION;   // "0.2.0 (abc1234)"
-            std::wstring tag = LatestReleaseTag();
+            // --prepare builds this Setup's own release: the game launcher installed
+            // that release, and runs this again when it installs another.
+            std::wstring tag = s_headless ? std::wstring() : LatestReleaseTag();
             if (tag.empty())
                 tag = L"v" + Widen(version.substr(0, version.find(' ')));
             if (!fs::exists(repo / L".git", ec))
@@ -511,6 +583,8 @@ namespace
                 Log(L"(couldn't update - building the code as it is)");
 
             // 3. Build
+            Stage(0.2, 0.8);
+            fs::remove(BuiltMarker(repo), ec);
             Status(L"Building (the first build takes 10-30 minutes)");
             std::wstring cmd = L"python -u tools\\build.py";
             if (!haveGame) cmd += L" --iso " + Quote(iso);
@@ -535,9 +609,15 @@ namespace
             // 4. Done
             s_installed = repo / L"build" / L"runtime" / L"DarkSectorLauncher.exe";
             if (!fs::exists(s_installed, ec)) Fail(L"The build finished but DarkSectorLauncher.exe isn't there.");
+            if (s_headless)
+            {
+                std::ofstream(BuiltMarker(repo)) << WET_VERSION << "\n";
+                Print(L"progress 1 Built");
+            }
             if (c.shortcut) MakeShortcut(s_installed);
-            message = L"Done. Start the game with the launcher" +
-                      std::wstring(c.shortcut ? L" (\"Dark Sector Recompiled\" on the desktop)." : L".");
+            message = s_headless ? std::wstring(L"Dark Sector is built.")
+                                 : L"Done. Start the game with the launcher" +
+                                       std::wstring(c.shortcut ? L" (\"Dark Sector Recompiled\" on the desktop)." : L".");
 
             // 5. Clean up, if asked.
             if (c.cleanup)
@@ -579,6 +659,7 @@ namespace
             s_logFile.close();
         }
         CoUninitialize();
+        s_installOk = ok;
         Post(WM_APP_DONE, message, ok);
     }
 
@@ -895,8 +976,118 @@ namespace
     }
 }
 
+// ---- Without a window (game launchers) ----
+namespace
+{
+    // stdout for the progress lines: the pipe a launcher gives, or the console
+    // Setup was started from.
+    void OpenStdout()
+    {
+        s_stdout = GetStdHandle(STD_OUTPUT_HANDLE);
+        if ((!s_stdout || s_stdout == INVALID_HANDLE_VALUE) && AttachConsole(ATTACH_PARENT_PROCESS))
+            s_stdout = CreateFileW(L"CONOUT$", GENERIC_WRITE, FILE_SHARE_WRITE, nullptr, OPEN_EXISTING, 0, nullptr);
+    }
+
+    fs::path BuiltGame(const fs::path& root) { return root / L"darksector-recomp" / L"build" / L"runtime" / L"DarkSectorRecomp.exe"; }
+
+    // --prepare --game=<copy> --out <folder>
+    int PrepareHeadless(const fs::path& game, const fs::path& root)
+    {
+        s_headless = true;
+        OpenStdout();
+        if (root.empty())
+        {
+            Print(L"Setup needs --out <folder>: where to build the game.");
+            return 1;
+        }
+        std::error_code ec;
+        fs::path repo = root / L"darksector-recomp";
+        if (fs::exists(repo / L"game" / L"extracted" / L"default.xex", ec) && fs::exists(BuiltGame(root), ec))
+        {
+            std::ifstream marker(BuiltMarker(repo));
+            std::string built;
+            std::getline(marker, built);
+            if (built == WET_VERSION)
+            {
+                Print(L"progress 1 Already built");
+                return 0;
+            }
+        }
+        Choices c;
+        c.source = game;
+        c.root = root;
+        c.shortcut = false;
+        Install(c);
+        return s_installOk ? 0 : 1;
+    }
+
+    // --play <folder> [arguments...]: the built game, from its own folder.
+    int PlayHeadless(const fs::path& root, const std::vector<std::wstring>& args)
+    {
+        fs::path exe = BuiltGame(root);
+        std::error_code ec;
+        if (!fs::exists(exe, ec))
+            return 3;
+        std::wstring cmd = L"\"" + exe.wstring() + L"\"";
+        for (const auto& a : args)
+        {
+            // Quoted as CommandLineToArgvW reads it back.
+            std::wstring q = L"\"";
+            size_t slashes = 0;
+            for (wchar_t ch : a)
+            {
+                if (ch == L'\\') { slashes++; continue; }
+                q.append(ch == L'"' ? slashes * 2 + 1 : slashes, L'\\');
+                slashes = 0;
+                q += ch;
+            }
+            q.append(slashes * 2, L'\\');
+            cmd += L" " + q + L"\"";
+        }
+        STARTUPINFOW si{ sizeof(si) };
+        PROCESS_INFORMATION pi{};
+        if (!CreateProcessW(exe.c_str(), cmd.data(), nullptr, nullptr, FALSE, 0, nullptr, exe.parent_path().c_str(), &si,
+                            &pi))
+            return 3;
+        WaitForSingleObject(pi.hProcess, INFINITE);
+        DWORD code = 1;
+        GetExitCodeProcess(pi.hProcess, &code);
+        CloseHandle(pi.hThread);
+        CloseHandle(pi.hProcess);
+        return int(code);
+    }
+}
+
 int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int show)
 {
+    {
+        // --play / --prepare: without a window.
+        int argc = 0;
+        LPWSTR* argv = CommandLineToArgvW(GetCommandLineW(), &argc);
+        std::vector<std::wstring> args(argv + 1, argv + argc);
+        LocalFree(argv);
+        if (!args.empty() && args[0] == L"--play")
+            return PlayHeadless(args.size() > 1 ? fs::path(args[1]) : fs::path(),
+                                std::vector<std::wstring>(args.begin() + std::min<size_t>(2, args.size()), args.end()));
+        bool prepare = false;
+        fs::path game, out;
+        for (size_t i = 0; i < args.size(); i++)
+        {
+            if (args[i] == L"--prepare") prepare = true;
+            else if (args[i].rfind(L"--game=", 0) == 0) game = args[i].substr(7);
+            else if (args[i] == L"--game" && i + 1 < args.size()) game = args[++i];
+            else if (args[i] == L"--out" && i + 1 < args.size()) out = args[++i];
+        }
+        if (prepare)
+        {
+            CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+            s_job = CreateJobObjectW(nullptr, nullptr);
+            JOBOBJECT_EXTENDED_LIMIT_INFORMATION limits{};
+            limits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+            SetInformationJobObject(s_job, JobObjectExtendedLimitInformation, &limits, sizeof(limits));
+            return PrepareHeadless(game, out);
+        }
+    }
     CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
     INITCOMMONCONTROLSEX icc{ sizeof(icc), ICC_PROGRESS_CLASS | ICC_STANDARD_CLASSES };
     InitCommonControlsEx(&icc);
