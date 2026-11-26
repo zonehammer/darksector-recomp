@@ -1,0 +1,103 @@
+# ---------------------------------------------------------------------------
+# WetPPC: the recompiled game code (generated/ppc), compiled as one static lib.
+# ---------------------------------------------------------------------------
+file(GLOB WET_PPC_SOURCES CONFIGURE_DEPENDS ${WET_GENERATED_DIR}/ppc_recomp.*.cpp)
+add_library(WetPPC STATIC ${WET_PPC_SOURCES} ${WET_GENERATED_DIR}/ppc_func_mapping.cpp)
+
+target_include_directories(WetPPC PUBLIC
+    ${WET_GENERATED_DIR}
+    ${XR_DIR}/thirdparty/simde
+    ${CMAKE_CURRENT_SOURCE_DIR}/include)
+
+# Every generated file sees our hooks first (timebase, checked indirect calls).
+set(WET_HOOKS_HEADER ${CMAKE_CURRENT_SOURCE_DIR}/include/wet_ppc_hooks.h)
+
+if(MSVC) # clang-cl
+    target_compile_options(WetPPC PUBLIC /FI${WET_HOOKS_HEADER} -msse4.1)
+    # Always optimise the generated code: unoptimised it uses enormous stack frames.
+    target_compile_options(WetPPC PRIVATE /W0 /O2 /clang:-fno-strict-aliasing)
+else()
+    target_compile_options(WetPPC PUBLIC "SHELL:-include \"${WET_HOOKS_HEADER}\"" -msse4.1)
+    target_compile_options(WetPPC PRIVATE -w -O2 -fno-strict-aliasing)
+endif()
+
+# The 113k-line declarations header is included by all ~440 files.
+target_precompile_headers(WetPPC PRIVATE ${WET_GENERATED_DIR}/ppc_recomp_shared.h)
+
+# ---------------------------------------------------------------------------
+# DarkSectorRecomp: the host program
+# ---------------------------------------------------------------------------
+find_package(Python3 REQUIRED COMPONENTS Interpreter)
+find_package(Threads REQUIRED)
+
+file(GLOB_RECURSE WET_RUNTIME_SOURCES CONFIGURE_DEPENDS
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/*.h)
+file(GLOB_RECURSE WET_KERNEL_SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/kernel/*.cpp)
+
+# Logging stubs for every import not implemented under src/kernel.
+set(WET_STUBS_CPP ${CMAKE_CURRENT_BINARY_DIR}/import_stubs.cpp)
+add_custom_command(
+    OUTPUT ${WET_STUBS_CPP}
+    COMMAND Python3::Interpreter ${WET_ROOT}/tools/gen_import_stubs.py
+            ${WET_GENERATED_DIR}/ppc_recomp_shared.h
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/kernel
+            ${WET_STUBS_CPP}
+    DEPENDS ${WET_ROOT}/tools/gen_import_stubs.py ${WET_GENERATED_DIR}/ppc_recomp_shared.h ${WET_KERNEL_SOURCES}
+    COMMENT "Generating import stubs")
+
+# The renderer bridge is compiled with Xenia's settings (C++17, its include paths).
+list(FILTER WET_RUNTIME_SOURCES EXCLUDE REGEX "/src/(gpu/xenia_bridge|apu/xenia_apu_bridge)\\.cpp$")
+if(WET_RENDERER)
+    add_library(WetRenderer STATIC ${CMAKE_CURRENT_SOURCE_DIR}/src/gpu/xenia_bridge.cpp
+                            ${CMAKE_CURRENT_SOURCE_DIR}/src/apu/xenia_apu_bridge.cpp)
+    xe_target(WetRenderer)
+    target_include_directories(WetRenderer PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src ${XE_TP}/stb ${WET_VERSION_INCLUDE})
+    target_link_libraries(WetRenderer PUBLIC xe_gpu xe_apu)
+    if(WIN32)
+        target_link_libraries(WetRenderer PUBLIC xe_gpu_d3d12 dxguid)
+        target_compile_definitions(WetRenderer PRIVATE WET_HAVE_D3D12=1)
+    endif()
+else()
+    add_library(WetRenderer STATIC ${CMAKE_CURRENT_SOURCE_DIR}/renderer_stub/renderer_stub.cpp
+                            ${CMAKE_CURRENT_SOURCE_DIR}/renderer_stub/apu_stub.cpp)
+    target_include_directories(WetRenderer PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+endif()
+
+add_executable(DarkSectorRecomp ${WET_RUNTIME_SOURCES} ${WET_STUBS_CPP})
+if(WIN32)
+    # The game's icon (launcher/game.ico): the exe and its window (Xenia loads MAINICON).
+    target_sources(DarkSectorRecomp PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/darksectorrecomp.rc)
+    set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/darksectorrecomp.rc PROPERTIES
+                                OBJECT_DEPENDS ${CMAKE_SOURCE_DIR}/launcher/game.ico)
+endif()
+# XenonUtils headers come via the XenonUtils link (after WetPPC, so the generated
+# ppc_context.h wins over the template of the same name).
+target_include_directories(DarkSectorRecomp PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src ${XR_DIR}/thirdparty/TinySHA1 ${WET_VERSION_INCLUDE})
+target_link_libraries(DarkSectorRecomp PRIVATE WetPPC WetRenderer XenonUtils Threads::Threads)
+if(WET_HAVE_SDL)
+    target_link_libraries(DarkSectorRecomp PRIVATE SDL2::SDL2-static)
+    target_compile_definitions(DarkSectorRecomp PRIVATE WET_HAVE_SDL=1)
+endif()
+
+if(WIN32)
+    target_compile_definitions(DarkSectorRecomp PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN _CRT_SECURE_NO_WARNINGS)
+    if(MINGW)
+        target_link_libraries(DarkSectorRecomp PRIVATE xinput1_4 winmm dxgi mfplat mfreadwrite mfuuid ole32)
+        # Guest code recurses deeply; give the main thread a big stack too.
+        # The map file lets tools/resolve_profile.py name profiled addresses.
+        target_link_options(DarkSectorRecomp PRIVATE -Wl,--stack,16777216 -Wl,-Map=$<TARGET_FILE_DIR:DarkSectorRecomp>/DarkSectorRecomp.map)
+        # A windowed app (no console window); main() stays the entry point.
+        target_link_options(DarkSectorRecomp PRIVATE -Wl,--subsystem,windows)
+    else()
+        target_link_libraries(DarkSectorRecomp PRIVATE xinput winmm dxgi mfplat mfreadwrite mfuuid ole32)
+        target_link_options(DarkSectorRecomp PRIVATE /MAP:$<TARGET_FILE_DIR:DarkSectorRecomp>/DarkSectorRecomp.map /SUBSYSTEM:WINDOWS /ENTRY:mainCRTStartup)
+    endif()
+endif()
+if(MSVC)
+    target_compile_options(DarkSectorRecomp PRIVATE /clang:-fno-strict-aliasing -Wno-unused-parameter)
+    # Guest code recurses deeply; give the main thread a big stack too.
+    target_link_options(DarkSectorRecomp PRIVATE /STACK:16777216)
+else()
+    target_compile_options(DarkSectorRecomp PRIVATE -fno-strict-aliasing -Wall -Wno-unused-parameter -Wno-unused-function)
+endif()

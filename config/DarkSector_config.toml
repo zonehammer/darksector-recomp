@@ -1,0 +1,112 @@
+# XenonRecomp config for Dark Sector (Xbox 360, TitleID 445007D4, Europe disc)
+# Paths are relative to this file. Build the `recompile` target to run it.
+[main]
+file_path = "../game/extracted/default.xex"
+out_directory_path = "../generated/ppc"
+switch_table_file_path = "DarkSector_switch_tables.toml"
+
+skip_lr = false
+skip_msr = false
+ctr_as_local = false
+xer_as_local = false
+reserved_as_local = false
+cr_as_local = false
+non_argument_as_local = false
+non_volatile_as_local = false
+
+# Register save/restore helpers (unique byte-pattern matches in .text; see tools/find_helpers.py)
+restgprlr_14_address = 0x827D6380
+savegprlr_14_address = 0x827D6330
+restfpr_14_address   = 0x827D6B6C
+savefpr_14_address   = 0x827D6B20
+restvmx_14_address   = 0x827D79F8
+savevmx_14_address   = 0x827D7760
+restvmx_64_address   = 0x827D7A8C
+savevmx_64_address   = 0x827D77F4
+
+# Functions whose branches or switch tables leave the analyser's bounds
+# (see tools/fix_switch_bounds.py).
+functions = [
+    { address = 0x8219CAB0, size = 0x1D4 },
+    { address = 0x821D5838, size = 0xC8 },
+    { address = 0x821EDC60, size = 0x68 },
+    { address = 0x821EDC88, size = 0x40 },
+    { address = 0x821EDCA0, size = 0x28 },
+    { address = 0x8220BA18, size = 0x168 },
+    { address = 0x8220BA3C, size = 0x50 },
+    { address = 0x8220BA8C, size = 0xF4 },
+    { address = 0x822AF1D0, size = 0x88 },
+    { address = 0x8232E748, size = 0x544 },
+    { address = 0x8234AE20, size = 0x4A0 },
+    { address = 0x8234B0C0, size = 0x200 },
+    { address = 0x8234B160, size = 0x160 },
+    { address = 0x823D64B0, size = 0x64 },
+    { address = 0x823D6668, size = 0x88 },
+    { address = 0x823F27C0, size = 0x40 },
+    { address = 0x824187B0, size = 0xB8 },
+    { address = 0x82418940, size = 0x84 },
+    { address = 0x8243CA80, size = 0x5C },
+    { address = 0x8243CBD0, size = 0x78 },
+    { address = 0x82440C00, size = 0xB4 },
+    { address = 0x82467998, size = 0x1F0 },
+    { address = 0x8247B2B0, size = 0x90 },
+    { address = 0x825568F8, size = 0xAC },
+    { address = 0x8270AB90, size = 0x54 },
+    { address = 0x82750378, size = 0x100 },
+    { address = 0x827503B0, size = 0xC8 },
+    { address = 0x827503DC, size = 0x9C },
+    { address = 0x827503E8, size = 0x90 },
+    { address = 0x827E7CD0, size = 0x17C },
+    { address = 0x827E7CD8, size = 0x174 },
+    { address = 0x827E7EF0, size = 0x90 },
+    { address = 0x827E8070, size = 0x284 },
+    { address = 0x827E8300, size = 0x128 },
+    { address = 0x827E89A8, size = 0x210 },
+    { address = 0x827E8AFC, size = 0xBC },
+    { address = 0x827E94D0, size = 0x94 },
+    { address = 0x827F76C0, size = 0x5A0 },
+    { address = 0x827F8840, size = 0x824 },
+    { address = 0x827F8EC8, size = 0x19C },
+    { address = 0x8287D020, size = 0xF60 },
+    { address = 0x8287D028, size = 0xF58 },
+    { address = 0x82886FC8, size = 0x114 },
+    { address = 0x828D5A30, size = 0x110 },
+    { address = 0x829ADF18, size = 0xF8 },
+    { address = 0x829B0DE0, size = 0xC0 },
+    { address = 0x829B16F8, size = 0x150 },
+    { address = 0x829B1858, size = 0x150 },
+    { address = 0x829C3010, size = 0x80 },
+    { address = 0x829CA188, size = 0x160 },
+    { address = 0x829CA2AC, size = 0x3C },
+    { address = 0x82A5D030, size = 0x78 },
+    { address = 0x82A5D064, size = 0x44 },
+    { address = 0x82A5D06C, size = 0x3C },
+    { address = 0x82A5D074, size = 0x34 },
+    { address = 0x82A5D07C, size = 0x2C },
+    { address = 0x82A5D084, size = 0x24 },
+    { address = 0x82A5D08C, size = 0x1C },
+    { address = 0x82A5D094, size = 0x14 },
+    { address = 0x82AA5258, size = 0x68 },
+    { address = 0x82AA52C0, size = 0x64 },
+    { address = 0x82AA5328, size = 0x5C },
+    { address = 0x82AA5388, size = 0x198 },
+    { address = 0x82AA53BC, size = 0x164 },
+    { address = 0x82AA5520, size = 0x16C },
+    { address = 0x82AA5558, size = 0x134 },
+    { address = 0x82ABB008, size = 0x54 },
+    { address = 0x82ABB068, size = 0x54 },
+    { address = 0x82ABB0C8, size = 0x60 },
+    { address = 0x82ABB130, size = 0x4C },
+    { address = 0x82BDCA90, size = 0x198 },
+    { address = 0x82BDCB00, size = 0x124 },
+    { address = 0x82BDCB64, size = 0xC0 },
+    { address = 0x82BDCBA4, size = 0x80 },
+    { address = 0x82BDCC28, size = 0x1DC },
+    { address = 0x82C31BD8, size = 0x104 },
+    { address = 0x82C31C80, size = 0x5C },
+    { address = 0x82C31CA4, size = 0x38 },
+    { address = 0x82C31CAC, size = 0x30 },
+    { address = 0x82C31CB4, size = 0x28 },
+    { address = 0x82C31CBC, size = 0x20 },
+
+]
