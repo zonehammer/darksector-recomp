@@ -65,7 +65,8 @@ PPC_FUNC(sub_82447908)
     // Sensitivity 50 (the default) = 0.066 degrees per pixel, as in WET.
     double degreesPerCount = 0.066 * options::MouseSensitivity() / 50.0;
     double yaw = dx * degreesPerCount;
-    double pitch = -dy * degreesPerCount;   // the cursor's y grows downwards, the stick's upwards
+    // Mouse down = positive pitch here (tested: the other sign was upside down).
+    double pitch = dy * degreesPerCount;
     if (options::MouseInvertY())
         pitch = -pitch;
     if (PPC_LOAD_U8(input + 412))           // the game's own invert option, as for the stick
