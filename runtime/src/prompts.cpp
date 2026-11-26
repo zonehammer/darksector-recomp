@@ -445,3 +445,18 @@ namespace wet::prompts
         return out;
     }
 }
+
+// For other games' prompt code (ds_keyprompts.cpp): the art wanted (0 Xbox, 1
+// PlayStation, 2 keyboard / mouse) and what a pad button is bound to.
+namespace wet::prompts
+{
+    int WantedArtIndex()
+    {
+        Art a = WantedArt();
+        return a == Art::Xbox ? 0 : a == Art::PlayStation ? 1 : 2;
+    }
+    bool KeyboardLabelFor(wet::prompt_art::Symbol sym, wet::prompt_art::Label& label)
+    {
+        return KeyboardLabel(sym, label);
+    }
+}

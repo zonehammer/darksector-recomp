@@ -27,6 +27,14 @@
 #include <vector>
 
 namespace fs = std::filesystem;
+#if GAME_DS
+namespace wet::keyprompts
+{
+    bool IsTextureCache(const std::string& lowerName);
+    void PatchRead(const std::string& cachePath, uint64_t fileOffset, uint32_t buffer, uint32_t length);
+}
+#endif
+
 using namespace wet;
 
 namespace wet::prompts
@@ -250,6 +258,7 @@ namespace
         bool intro = false;     // a startup logo movie (skip_intro)
         bool movie = false;     // a movie file (.bik, .vp6) is open
         std::string music;      // one of the game's music streams (mu_*.xma): its name
+        bool textureCache = false;   // Dark Sector's B.Texture.cache (keyboard prompts)
 
         std::string guestPath;
         fs::path hostPath;
@@ -493,6 +502,17 @@ namespace
                 f->video = true;
                 VideoFileOpened(r.host.filename().string());
             }
+#if GAME_DS
+            // The texture cache: keyboard prompts (ds_keyprompts.cpp) patch its button icons as they're read.
+            if (ext == ".cache")
+            {
+                std::string file = r.host.filename().string();
+                for (auto& c : file)
+                    c = char(std::tolower((unsigned char)c));
+                if (keyprompts::IsTextureCache(file))
+                    f->textureCache = true;
+            }
+#endif
             // The game's music (music.cpp plays your songs along with it).
             if (ext == ".xma")
             {
@@ -683,6 +703,10 @@ GUEST_IMPORT(NtReadFile)
         SeekTo(f->fp, f->position);
         PrepareHostWrite(buffer, length);
         got = ReadToGuest(f->fp, buffer, length);
+#if GAME_DS
+        if (f->textureCache && got)
+            keyprompts::PatchRead(f->hostPath.string(), f->position, buffer, uint32_t(got));
+#endif
         f->position += got;
         music::GameRead(buffer, uint32_t(got), !f->music.empty());
     }
