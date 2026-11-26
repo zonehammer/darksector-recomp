@@ -1033,6 +1033,13 @@ namespace
                 if (wet::options::ResolutionScale() != wet::options::RunningResolutionScale())
                     Note("Restart the game to change the resolution.");
             }
+#if GAME_DS
+            {
+                bool wide = wet::options::Widescreen();
+                if (RowCheck("Widescreen / ultrawide", &wide, "Fills 21:9 and 32:9 screens with a wider view in play. Sharpest after a restart."))
+                    wet::options::SetWidescreen(wide);
+            }
+#endif
 #if GAME_WET
             bool wide = wet::options::Widescreen();
             if (RowCheck("Widescreen / ultrawide", &wide, "Fills 21:9 and 32:9 screens with a wider view. Sharpest after a restart."))
@@ -2087,12 +2094,22 @@ namespace wet::renderer
 
     void SetResolutionScale(uint32_t scale) { s_resolutionScale = std::clamp<uint32_t>(scale, 1, 3); }
 
+    static std::atomic<uint64_t> s_gameplayViewNs{ 0 };
+    void NoteGameplayView() { s_gameplayViewNs.store(wet::os::MonotonicNs(), std::memory_order_relaxed); }
+
     float DisplayAspect()
     {
         constexpr float k169 = 16.0f / 9.0f;
         uint32_t w = 1280, h = 720;
+#if GAME_CONAN || GAME_DS
+        // Only gameplay (frames where the game's 3D camera was set up) fills the
+        // wider screen; menus and movies stay 16:9.
+        bool gameplay = wet::os::MonotonicNs() - s_gameplayViewNs.load(std::memory_order_relaxed) < 300000000ull;
+#else
+        constexpr bool gameplay = true;
+#endif
 #if XE_PLATFORM_WIN32
-        if (wet::options::Widescreen() && s_window && s_window->window)
+        if (gameplay && wet::options::Widescreen() && s_window && s_window->window)
         {
             uint32_t ww = s_window->window->GetActualPhysicalWidth(), wh = s_window->window->GetActualPhysicalHeight();
             if (ww && wh && float(ww) / float(wh) > k169 + 0.01f)

@@ -375,7 +375,11 @@ namespace wet::options
         s_musicMode = 0;
         s_outfit = 0;
         s_hair = 0;
+#if !GAME_DS
         s_widescreen = false;
+#else
+        s_widescreenHud = false;   // the HUD can't be told apart from the scene yet
+#endif
         s_hideBorders = false;
         s_filmGrain = 100;
         s_fov = 90;
