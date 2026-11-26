@@ -172,6 +172,31 @@ GUEST_IMPORT(RtlRaiseException)
             name.c_str());
         return;
     }
+    if (code == 0xE06D7363 && Ld32(rec + 0x10) >= 3)
+    {
+        // An MSVC C++ throw: ExceptionInformation = { magic, object*, ThrowInfo* }.
+        // Log the thrown types (ThrowInfo -> CatchableTypeArray -> TypeDescriptor
+        // names) and, when the object starts with a pointer to text, that text.
+        uint32_t object = Ld32(rec + 0x18), info = Ld32(rec + 0x1C);
+        std::string types;
+        if (info >= 0x10000)
+            if (uint32_t arr = Ld32(info + 12); arr >= 0x10000)
+                for (uint32_t i = 0, n = std::min<uint32_t>(Ld32(arr), 6); i < n; i++)
+                    if (uint32_t ct = Ld32(arr + 4 + i * 4); ct >= 0x10000)
+                        if (uint32_t td = Ld32(ct + 4); td >= 0x10000)
+                            types += " " + ReadCString(td + 8, 96);
+        std::string text;
+        if (object >= 0x10000)
+            for (uint32_t off : { 0u, 4u, 8u })
+                if (uint32_t p = Ld32(object + off); p >= 0x10000 && p < 0xF0000000u)
+                    if (std::string t = ReadCString(p, 160); t.size() >= 4)
+                    {
+                        text = t;
+                        break;
+                    }
+        LogFatal("C++ exception thrown: object %08X, types:%s%s%s", object, types.c_str(),
+                 text.empty() ? "" : ", text: ", text.c_str());
+    }
     LogFatal("RtlRaiseException(code 0x%08X) - structured exceptions are not supported yet", code);
     LogCrashContext();
     os::ExitProcess(1);

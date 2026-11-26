@@ -299,7 +299,6 @@ GUEST_IMPORT(XMAReleaseContext)
 // ---------------------------------------------------------------------------
 // Network: report "no network" cleanly.
 // ---------------------------------------------------------------------------
-constexpr uint32_t WSAENETDOWN = 10050;
 
 GUEST_IMPORT(NetDll_WSAStartup)
 {
@@ -310,8 +309,6 @@ GUEST_IMPORT(NetDll_WSAStartup)
 GUEST_IMPORT(NetDll_WSACleanup) { Ret(ctx, 0); }
 GUEST_IMPORT(NetDll_XNetStartup) { Ret(ctx, 0); }
 GUEST_IMPORT(NetDll_XNetCleanup) { Ret(ctx, 0); }
-GUEST_IMPORT(NetDll_WSAGetLastError) { Ret(ctx, WSAENETDOWN); }
-GUEST_IMPORT(NetDll_socket) { Ret(ctx, 0xFFFFFFFF); } // INVALID_SOCKET
 
 // NetDll_XNetRandom(caller, buffer, length): random bytes (the title's session nonces).
 GUEST_IMPORT(NetDll_XNetRandom)
@@ -348,9 +345,7 @@ GUEST_IMPORT(NetDll_inet_addr)
     Ret(ctx, result);
 }
 
-// Name lookups fail cleanly (no network): XNetDnsLookup(caller, name, event,
-// XNDNS** out) -> *out = 0, WSAENETDOWN; the event the title makes for it is
-// never waited on (WSA_INVALID_EVENT = 0).
+// WSA events: there is no network, so none is ever made (WSA_INVALID_EVENT = 0).
 GUEST_IMPORT(NetDll_WSACreateEvent) { Ret(ctx, 0); }
 GUEST_IMPORT(NetDll_WSACloseEvent) { Ret(ctx, 1); }
 GUEST_IMPORT(NetDll_WSAResetEvent) { Ret(ctx, 1); }
@@ -364,13 +359,38 @@ GUEST_IMPORT(NetDll_WSAWaitForMultipleEvents)
     os::SleepNs(uint64_t(timeout == 0xFFFFFFFF ? 100 : std::min<uint32_t>(timeout, 1000)) * 1000000ull);
     Ret(ctx, 0x102);   // WSA_WAIT_TIMEOUT
 }
+// XNetDnsLookup(caller, host, event, XNDNS** out): answered at once with a
+// failed lookup, as Xenia does - an XNDNS { status != 0, 0 addresses }, and the
+// event signalled. Titles wait on the event (or poll the status) and then read
+// the result; leaving *out null and the event unset left Dark Sector on its
+// "CONTACT..." screen for 30 s and then stuck after "SERVER UNAVAILABLE".
 GUEST_IMPORT(NetDll_XNetDnsLookup)
 {
-    if (uint32_t out = Arg(ctx, 3))
-        St32(out, 0);
-    Ret(ctx, WSAENETDOWN);
+    uint32_t host = Arg(ctx, 1), event = Arg(ctx, 2), out = Arg(ctx, 3);
+    static int logged = 0;
+    if (logged++ < 10)
+    {
+        char name[128] = {};
+        for (uint32_t i = 0; host && i + 1 < sizeof(name) && Ld8(host + i); i++)
+            name[i] = char(Ld8(host + i));
+        Log("XNetDnsLookup(\"%s\"): no network, answered with a failed lookup", name);
+    }
+    if (out)
+    {
+        uint32_t dns = SystemAlloc(0x28);   // XNDNS: status, address count, 8 addresses (zeroed)
+        St32(dns, 1);                        // non-zero: failed
+        St32(out, dns);
+    }
+    if (event)
+        SignalEventHandle(event);
+    Ret(ctx, 0);
 }
-GUEST_IMPORT(NetDll_XNetDnsRelease) { Ret(ctx, 0); }
+GUEST_IMPORT(NetDll_XNetDnsRelease)
+{
+    if (uint32_t dns = Arg(ctx, 1))
+        SystemFree(dns);
+    Ret(ctx, 0);
+}
 
 // XamGetSystemVersion(): 0, as Xenia reports - the system libraries pick
 // their oldest (simplest) code paths for it.
