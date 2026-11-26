@@ -3,17 +3,22 @@
 //
 // Both are bool variables made by static initialisers (sub_82C7CCC0 for
 // "GodMode", the next one for "InfiniteAmmo"): objects at 0x82D24170 and
-// 0x82D241E4, value byte at +112. The game's damage check reads GodMode only
-// for the player (sub_82589Cxx: "is the player" virtual, then the byte), so
-// enemies still die.
+// 0x82D241E4, value byte at +112. The game asks for them through a global
+// debug-settings object (static instance at 0x82D5FFD0, vtable 0x8202FCF0):
+// sub_82589C20 is IsGodMode and sub_82589CD0 IsInfiniteAmmo, each
+// "CheatsAllowed() && variable". CheatsAllowed (vtable +220, sub_82719E60)
+// is hard-wired to false in the retail game, so the variables alone do
+// nothing: the two getters are overridden below to answer yes while the option
+// is on, and run the game's own code otherwise.
 //
-// ApplyCheats runs once per frame (VdSwap) and writes the bytes when an option
-// is on, and once more when it is turned off.
+// ApplyCheats runs once per frame (VdSwap) and also sets the variables, so
+// the game's hidden cheat menu shows the same state.
 #include "game.h"
 #if GAME_DS
 #include "kernel/kernel.h"
 #include "options.h"
 #include "photo.h"
+#include "ppc_context.h"
 #include <cstring>
 
 namespace wet::cheats
@@ -76,5 +81,42 @@ namespace wet::cheats
         Apply(kGodMode, options::GodMode(), s_lastGod, "God mode");
         Apply(kInfiniteAmmo, options::InfiniteAmmo(), s_lastAmmo, "Infinite ammo");
     }
+}
+
+extern "C" void __imp__sub_82589C20(PPCContext& ctx, uint8_t* base);
+extern "C" void __imp__sub_82589CD0(PPCContext& ctx, uint8_t* base);
+
+// IsGodMode(): yes while the god_mode option is on.
+PPC_FUNC(sub_82589C20)
+{
+    if (wet::options::GodMode())
+    {
+        static bool logged = false;
+        if (!logged)
+        {
+            logged = true;
+            wet::Log("Cheats: the game checked god mode - on");
+        }
+        ctx.r3.u64 = 1;
+        return;
+    }
+    __imp__sub_82589C20(ctx, base);
+}
+
+// IsInfiniteAmmo(): yes while the infinite_ammo option is on.
+PPC_FUNC(sub_82589CD0)
+{
+    if (wet::options::InfiniteAmmo())
+    {
+        static bool logged = false;
+        if (!logged)
+        {
+            logged = true;
+            wet::Log("Cheats: the game checked infinite ammo - on");
+        }
+        ctx.r3.u64 = 1;
+        return;
+    }
+    __imp__sub_82589CD0(ctx, base);
 }
 #endif
