@@ -31,6 +31,10 @@ longjmp_address = 0x829A36A0
 # Functions whose branches or switch tables leave the analyser's bounds
 # (see tools/fix_switch_bounds.py).
 functions = [
+    # memset: its tail ("stb; bdzlr; stb 1; bdzlr; stb 2; blr") was split into
+    # three functions, so fills ending in 2-3 odd bytes left 1-2 bytes unwritten
+    # (garbled indentation in the save settings and the level-load crash).
+    { address = 0x827D6D50, size = 0xA0 },
     { address = 0x8219CAB0, size = 0x1D4 },
     { address = 0x821D5838, size = 0xC8 },
     { address = 0x821EDC60, size = 0x68 },

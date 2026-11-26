@@ -1,6 +1,6 @@
 # Dark Sector Recompiled: handover sheet
 
-For the next agent picking this up. Written 26 Nov 2026 at commit `c6a000b`, plus this file.
+For the next agent picking this up. Written 26 Nov 2026; updated for the memset fix.
 
 ## 1. What this is
 
@@ -33,7 +33,7 @@ The template and lessons are in the user's `xbox360-recomp-playbook` skill. Read
   - goes through the menus.
 - Starting a new game draws the opening scene ("LASRIA, U.S.S.R. - 1987 / Salvage Operation") correctly at 4K. No pipeline failures.
 
-**Stops at:** a fatal C++ exception (`std::out_of_range`) during the first level load, about 1 s after the opening scene. It happens the same way on the PC and headless. See section 5, which is the next job.
+**Next:** the first level load works headless since the memset fix (section 5). It needs a test on the user's PC.
 
 ## 3. Rules from the user (important)
 
@@ -115,45 +115,17 @@ On the title screen DS opens two UDP sockets (one bound to port 1000).
 - XNetDnsLookup now answers like Xenia: a failed XNDNS, with its event signalled. DS never calls it.
 - RtlRaiseException now logs MSVC C++ throws, with the thrown type names (`rtl.cpp`).
 
-## 5. Next job: the crash at the first level load
+## 5. Fixed: the crash at the first level load (memset split in three)
 
-```
-FATAL: C++ exception thrown: object 700A2CD0, types: .?AVout_of_range@std@@ .?AVlogic_error@std@@ .?AVexception@std@@
-guest call stack: 827DD72C 827D5044 82100B6C 8219E6E8 8228BBE4 8228C590 82274B00 82750BAC 8274DD94 82749DC8 821012E0 827ECFD8
-```
+The level load threw `std::out_of_range`. The game writes each object's properties to text and parses it back, and the text came out with garbled indentation (the same garbage was in the save `settings` file). That broke the braces, so the parser ran past the end.
 
-The same "C++ exception thrown" line is in the user's test 2 log. Two cautions:
-- The log contains stray binary bytes, so use `grep -a`.
-- The "text: ... bad locale name" part of that line is junk the logger picked up from nearby memory. Ignore it.
+**Cause:** XenonRecomp split the game's memset (`sub_827D6D50`) into three functions at its tail. The tail is `stb 0; bdzlr; stb 1; bdzlr; stb 2; blr`, and the pieces at 0x827D6DE0 and 0x827D6DE8 were never reached, so fills ending in 2-3 odd bytes left 1-2 bytes unwritten.
 
-What is known:
+**Fix:** `{ address = 0x827D6D50, size = 0xA0 }` in `config/DarkSector_config.toml`.
 
-- **The throwing call:** `sub_82100B40` is `std::string::assign(const string& src, pos, n)` / substr. It calls `_Xran` (`sub_827D4FF8`) when `pos > src.size()`.
-- **The caller:** `sub_8219E560` is a text parser that walks a big `key=value\n` text, with `{ }` blocks, using substr. It is called from `sub_8228BAA8` ← `sub_8228C320` ← `sub_822745B8` (the level/scene load).
-- **At the throw** (headless, gdb):
-  - the source string is at r30, an MSVC `std::string` (buffer pointer at +4, size at +0x14, capacity at +0x18);
-  - its size is 5399 bytes (0x1517), its capacity 8092, and its text contains `...ance=0\n`;
-  - pos is r27 = 0x5F80 (24448), so the parser has run far past the end of the text. On the PC run the values differ (r25=0x510, r27=0xAAE...), so it is data-dependent.
-- **Strong clue:** the save `settings` file the game writes has garbled indentation. Lines inside `{ }` should start with 4 spaces, but some have 2 spaces plus 2 garbage bytes:
-  ```
-  searchSettings={
-      players=4294967295
-    XM-<scoreLimit=4294967295      <- bytes 2-3 of the indent are junk
-     ?gameModeId=0
-  ```
-  So something in how the game builds or measures indentation and whitespace is mistranslated. The usual suspects:
-  - a vector or memset path;
-  - a 16-bit store or load (`sth`/`lhz`);
-  - a `rlwinm`/`rlwimi` mask;
-  - a byte-swapped halfword (`lhbrx`/`sthbrx`).
-  The parser that crashes probably mis-skips whitespace for the same reason, and then reads past the end.
-- **Suggested first steps (ask the user before going deep):**
-  1. Find the function that writes the indent:
-     - break on the settings file write (`NtWriteFile` to `s:\settings`) and walk back to the serializer;
-     - or search the generated code for a loop storing 0x20 / 0x2020 / 0x20202020.
-  2. Check that function's PPC instructions in the generated C++ against the XenonRecomp output for known-bad patterns.
-  3. Compare with how the FNC and WET recomps handled similar issues. FNC needed fused `vmaddfp`/`vnmsubfp` fixes, which are in XenonRecomp at the pinned commit.
-  4. Delete the bad `settings` file before retesting (`game\hdd\content\445007D4\00000001\UserSaveContent\settings` on the PC). A corrupted file may keep crashing even after the fix.
+**Scan:** I checked every generated function for one whose last instruction can fall through into the next "function". Only memset was affected. The rest end in calls that never return, or are data. The scan script logic: take the last instruction of each function, ignoring `.long` / `nop` padding, and flag it if it isn't `b` / `blr` / `bctr` / `twi 31`.
+
+**Result:** headless, the game now loads the level, writes `CONTINUE.SAV` / `01.SAV`, and runs on with no errors.
 
 ## 6. Other things noticed (not yet looked at)
 
