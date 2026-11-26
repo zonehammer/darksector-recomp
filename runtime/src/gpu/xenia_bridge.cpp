@@ -933,7 +933,7 @@ namespace
                 if (RowCombo("Language", &pick, kNames, 6, "Text and speech. Takes effect at the next start."))
                     wet::options::SetLanguage(kIds[pick]);
             }
-#if !(GAME_FNC || GAME_DS)   // Dark Sector keeps its Xbox prompts
+#if !GAME_FNC
             {
                 static const char* kNames[] = { "Automatic", "Xbox", "PlayStation", "Keyboard / mouse" };
                 int pick = wet::options::ButtonPrompts();

@@ -172,7 +172,7 @@ namespace wet::options
 #endif
             std::fprintf(f, "# vsync: 1 = never tear (frames wait for the screen's refresh); 0 = present at once (best with G-Sync / FreeSync); restart\n");
             std::fprintf(f, "vsync = %d\n", s_vsync.load());
-#if !(GAME_FNC || GAME_DS)
+#if !GAME_FNC
             std::fprintf(f, "# button_prompts: 0 = automatic (keyboard / mouse with no controller at startup, PlayStation symbols with a PlayStation controller, else Xbox), 1 = Xbox, 2 = PlayStation, 3 = keyboard / mouse\n");
             std::fprintf(f, "button_prompts = %d\n", s_buttonPrompts.load());
 #endif
