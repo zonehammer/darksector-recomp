@@ -13,7 +13,9 @@
 // game's timing needs. Register and context layouts follow Xenia (apu/
 // xma_decoder.cc, xma_context.h).
 #include "kernel.h"
+#include "../game.h"
 #include "xma.h"
+#include "../input.h"
 #include "apu/apu.h"
 #include "gpu/renderer.h"
 #include "../memory.h"
@@ -224,7 +226,13 @@ namespace wet
         if (reg >= kRegKick0 && reg < kRegKick0 + 10)
         {
             if (s_kicks++ == 0)
+            {
                 Log("XMA: first context kick (0x%08X)", value);
+#if GAME_DS
+                // The title screen's music: the startup logos are over (skip_intro, fs.cpp).
+                SetIntroMoviePlaying(false);
+#endif
+            }
             if ((s_kicks & (s_kicks - 1)) == 0 && s_kicks >= 1024)
                 Log("XMA: %llu kicks, %llu silent frames produced", (unsigned long long)s_kicks,
                     (unsigned long long)s_framesOut);

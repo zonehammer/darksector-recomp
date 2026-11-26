@@ -1007,6 +1007,8 @@ namespace wet
     {
         if (playing && !s_introPlaying)
             s_introSince = SinceStart();
+        if (playing != s_introPlaying.load())
+            Log(playing ? "Skip intro: pressing A through the startup logos" : "Skip intro: done");
         s_introPlaying = playing;
     }
 
@@ -1087,6 +1089,8 @@ namespace wet
         if (s_introPlaying && options::SkipIntro())
         {
             double t = SinceStart() - s_introSince;
+            if (t > 30)   // never longer than any intro (in case the end is never seen)
+                s_introPlaying = false;
             if (t > 0.3 && std::fmod(t, 0.4) < 0.1)
                 extra |= kA;
         }

@@ -505,6 +505,34 @@ namespace
                     music::GameMusicOpened(file);
                 }
             }
+#if GAME_DS
+            // Dark Sector's startup logos are still images (four .png files,
+            // shown one after another); A skips each. skip_intro presses A from
+            // the first one until the title screen loads (F.Misc below; the
+            // title music's first XMA kick in xma.cpp is the backstop).
+            if (ext == ".png")
+            {
+                std::string file = r.host.filename().string();
+                for (auto& c : file)
+                    c = char(std::tolower((unsigned char)c));
+                static bool started = false;
+                if (file == "d3publisherlogo_colo.png" && !started)
+                {
+                    started = true;
+                    SetIntroMoviePlaying(true);
+                }
+            }
+            // The title screen loads its front-end data just before it takes
+            // input: stop pressing there, or a press would go past the title.
+            if (ext == ".cache")
+            {
+                std::string file = r.host.filename().string();
+                for (auto& c : file)
+                    c = char(std::tolower((unsigned char)c));
+                if (file.rfind("f.misc", 0) == 0)
+                    SetIntroMoviePlaying(false);
+            }
+#endif
             // The logo and legal movies at startup: skip_intro presses A
             // through them (a missing movie is a "dirty disc" to the game).
             if (ext == ".bik")
