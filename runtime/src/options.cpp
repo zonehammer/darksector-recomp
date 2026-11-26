@@ -158,7 +158,7 @@ namespace wet::options
             std::fprintf(f, "# fov: horizontal field of view in degrees at 16:9, 60-130 (90 = the game's own)\n");
             std::fprintf(f, "fov = %d\n", s_fov.load());
 #endif
-#if GAME_WET
+#if GAME_WET || GAME_DS
             std::fprintf(f, "# widescreen: 1 = fill wider screens and windows (21:9, 32:9) instead of 16:9 with bars\n");
             std::fprintf(f, "widescreen = %d\n", s_widescreen.load());
 #endif
@@ -185,7 +185,7 @@ namespace wet::options
             std::fprintf(f, "# mouse_direct: 1 = the mouse turns the camera by how far it moves (no stick speed limit); 0 = the mouse acts as a stick\n");
             std::fprintf(f, "mouse_direct = %d\n", s_mouseDirect.load());
 #endif
-#if GAME_WET
+#if GAME_WET || GAME_DS
             std::fprintf(f, "# mouse_native: 1 = the mouse turns the third-person camera directly (native mouse look); 0 = through the right stick\n");
             std::fprintf(f, "mouse_native = %d\n", s_mouseNative.load());
 #endif
