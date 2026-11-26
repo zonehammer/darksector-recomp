@@ -783,6 +783,20 @@ GUEST_IMPORT(XamShowMessageBoxUIEx)
     }));
 }
 
+// XamShowMessageBoxUI: the same arguments as the Ex form.
+GUEST_IMPORT(XamShowMessageBoxUI)
+{
+    std::string title = Arg(ctx, 1) ? Narrow(ReadWideCString(Arg(ctx, 1), 256)) : "";
+    std::string text = Arg(ctx, 2) ? Narrow(ReadWideCString(Arg(ctx, 2), 1024)) : "";
+    Log("Message box \"%s\": %s", title.c_str(), text.c_str());
+    uint32_t focus = Arg(ctx, 5), resultPtr = Arg(ctx, 7);
+    Ret(ctx, RunDialog("XamShowMessageBoxUI", Arg(ctx, 8), [focus, resultPtr] {
+        if (resultPtr)
+            St32(resultPtr, focus);
+        return ERROR_SUCCESS;
+    }));
+}
+
 // Guide screens the title can open: there is no guide, report them as closed again.
 static void NoGuide(PPCContext& ctx, const char* name)
 {

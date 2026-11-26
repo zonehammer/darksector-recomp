@@ -106,3 +106,14 @@ GUEST_IMPORT(NetDll_XNetGetTitleXnAddr)
         St8(a + 10 + i, 0xCC);
     Ret(ctx, 4); // XNET_GET_XNADDR_STATIC
 }
+
+// More of the network library (Dark Sector): no network, as above.
+GUEST_IMPORT(NetDll_sendto) { Ret(ctx, kSocketError); }
+GUEST_IMPORT(NetDll_recvfrom) { Ret(ctx, kSocketError); }
+GUEST_IMPORT(NetDll_getsockname) { Ret(ctx, kSocketError); }
+GUEST_IMPORT(NetDll_ioctlsocket) { Ret(ctx, kSocketError); }
+GUEST_IMPORT(NetDll_XNetGetEthernetLinkStatus) { Ret(ctx, 0); }   // no cable
+GUEST_IMPORT(NetDll_XNetQosRelease) { Ret(ctx, 0); }
+GUEST_IMPORT(NetDll_XNetQosLookup) { Ret(ctx, 0x8007274C); }      // WSAETIMEDOUT as HRESULT
+GUEST_IMPORT(NetDll_XNetQosListen) { Ret(ctx, 0x8007274C); }
+GUEST_IMPORT(NetDll_XNetXnAddrToInAddr) { Ret(ctx, 0x80070057); }  // E_INVALIDARG
