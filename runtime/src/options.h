@@ -43,6 +43,14 @@ namespace wet::options
     bool AchievementPopups();
     void SetAchievementPopups(bool v);
     bool Vibration();
+    // Testing cheats (Dark Sector: the game's own GodMode / InfiniteAmmo, ds_cheats.cpp).
+    bool GodMode();
+    void SetGodMode(bool v);
+    bool InfiniteAmmo();
+    void SetInfiniteAmmo(bool v);
+    // Dark Sector camera field of view in degrees: the game's Graphics.FOV setting (65 = its own).
+    int CameraFov();
+    void SetCameraFov(int v);
     void SetVibration(bool v);
     bool GpuWait();
     void SetGpuWait(bool v);

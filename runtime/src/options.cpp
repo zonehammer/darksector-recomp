@@ -31,7 +31,7 @@ namespace wet::options
         std::atomic<bool> s_inCutscene{ false };
         std::atomic<int> s_videoMode{ 1 };
         int s_scale = 1, s_scaleRunning = 1;
-        std::atomic<int> s_aa{ 0 }, s_filter{ 0 }, s_fullscreen{ 0 }, s_showFps{ 0 }, s_sharpness{ 50 }, s_filmGrain{ 100 }, s_fov{ 90 }, s_widescreen{ 0 }, s_widescreenHud{ 1 }, s_hideBorders{ 0 }, s_vsync{ 0 }, s_buttonPrompts{ 0 }, s_mouseAim{ 1 }, s_mouseSens{ 50 }, s_mouseInvert{ 0 }, s_mouseDirect{ 1 }, s_mouseNative{ 1 }, s_skipIntro{ 1 }, s_musicMode{ 0 }, s_musicVolume{ 80 }, s_musicShuffle{ 1 }, s_outfit{ 0 }, s_hair{ 0 }, s_brightness{ 0 }, s_contrast{ 100 }, s_gamma{ 100 }, s_saturation{ 100 }, s_aniso{ 1 }, s_autoBackup{ 1 }, s_shaderCache{ 1 }, s_asyncShaders{ 1 }, s_shaderPreload{ 0 }, s_adaptiveWatch{ 1 }, s_refreshGpuMemory{ 0 }, s_gpuWait{ 1 }, s_rov{ 0 }, s_vibration{ 1 }, s_achievementPopups{ 1 }, s_motionBlur{ 1 }, s_depthOfField{ 1 }, s_cameraShake{ 1 }, s_language{ 0 };
+        std::atomic<int> s_aa{ 0 }, s_filter{ 0 }, s_fullscreen{ 0 }, s_showFps{ 0 }, s_sharpness{ 50 }, s_filmGrain{ 100 }, s_fov{ 90 }, s_widescreen{ 0 }, s_widescreenHud{ 1 }, s_hideBorders{ 0 }, s_vsync{ 0 }, s_buttonPrompts{ 0 }, s_mouseAim{ 1 }, s_mouseSens{ 50 }, s_mouseInvert{ 0 }, s_mouseDirect{ 1 }, s_mouseNative{ 1 }, s_skipIntro{ 1 }, s_musicMode{ 0 }, s_musicVolume{ 80 }, s_musicShuffle{ 1 }, s_outfit{ 0 }, s_hair{ 0 }, s_brightness{ 0 }, s_contrast{ 100 }, s_gamma{ 100 }, s_saturation{ 100 }, s_aniso{ 1 }, s_autoBackup{ 1 }, s_shaderCache{ 1 }, s_asyncShaders{ 1 }, s_shaderPreload{ 0 }, s_adaptiveWatch{ 1 }, s_refreshGpuMemory{ 0 }, s_gpuWait{ 1 }, s_rov{ 0 }, s_vibration{ 1 }, s_achievementPopups{ 1 }, s_godMode{ 0 }, s_infiniteAmmo{ 0 }, s_cameraFov{ 65 }, s_motionBlur{ 1 }, s_depthOfField{ 1 }, s_cameraShake{ 1 }, s_language{ 0 };
         constexpr const char* kFile = "darksector.ini";
         // Mouse button bindings: left, right, middle, back (X1), forward (X2).
         constexpr const char* kMouseKeys[5] = { "mouse_left", "mouse_right", "mouse_middle", "mouse_back", "mouse_forward" };
@@ -134,6 +134,9 @@ namespace wet::options
 #endif
             std::fprintf(f, "# vibration: controller rumble on (1) or off (0)\n");
             std::fprintf(f, "vibration = %d\n", s_vibration.load());
+            std::fprintf(f, "god_mode = %d\n", s_godMode.load());
+            std::fprintf(f, "infinite_ammo = %d\n", s_infiniteAmmo.load());
+            std::fprintf(f, "camera_fov = %d\n", s_cameraFov.load());
             std::fprintf(f, "# achievement_popups: show \"Achievement unlocked\" pop-ups (1) or not (0)\n");
             std::fprintf(f, "achievement_popups = %d\n", s_achievementPopups.load());
             std::fprintf(f, "# video_mode: 1 = while a video plays, run at 30 FPS with the slower thread wake-ups (avoids video flicker)\n");
@@ -348,6 +351,9 @@ namespace wet::options
                 else if (!std::strcmp(key, "vsync")) s_vsync = value != 0;
                 else if (!std::strcmp(key, "button_prompts")) s_buttonPrompts = Clamp(value, 0, 3);
                 else if (!std::strcmp(key, "vibration")) s_vibration = value != 0;
+                else if (!std::strcmp(key, "god_mode")) s_godMode = value != 0;
+                else if (!std::strcmp(key, "infinite_ammo")) s_infiniteAmmo = value != 0;
+                else if (!std::strcmp(key, "camera_fov")) s_cameraFov = Clamp(value, 50, 110);
                 else if (!std::strcmp(key, "gpu_wait")) s_gpuWait = value != 0;
                 else if (!std::strcmp(key, "rov")) s_rov = value != 0;
                 else if (!std::strcmp(key, "adaptive_watch")) s_adaptiveWatch = value != 0;
@@ -601,6 +607,12 @@ namespace wet::options
     void SetAchievementPopups(bool v) { s_achievementPopups = v; Save(); }
     bool Vibration() { return s_vibration.load(std::memory_order_relaxed) != 0; }
     void SetVibration(bool v) { s_vibration = v; Save(); }
+    bool GodMode() { return s_godMode.load(std::memory_order_relaxed) != 0; }
+    void SetGodMode(bool v) { s_godMode = v; Save(); }
+    bool InfiniteAmmo() { return s_infiniteAmmo.load(std::memory_order_relaxed) != 0; }
+    void SetInfiniteAmmo(bool v) { s_infiniteAmmo = v; Save(); }
+    int CameraFov() { return s_cameraFov.load(std::memory_order_relaxed); }
+    void SetCameraFov(int v) { s_cameraFov = Clamp(v, 50, 110); Save(); }
     bool GpuWait() { return s_gpuWait.load(std::memory_order_relaxed) != 0; }
     void SetGpuWait(bool v) { s_gpuWait = v; Save(); }
     bool Rov() { return s_rov.load(std::memory_order_relaxed) != 0; }

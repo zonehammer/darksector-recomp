@@ -1051,6 +1051,15 @@ namespace
                     wet::options::SetFov(pick);
             }
 #endif
+#if GAME_DS
+            {
+                int fov = wet::options::CameraFov(), pick = fov;
+                Row("Field of view", "The game's camera field of view. 65 is the game's own.");
+                ImGui::SliderInt("##camfov", &pick, 50, 110, "%d\xC2\xB0");
+                if (pick != fov)
+                    wet::options::SetCameraFov(pick);
+            }
+#endif
             bool vsync = wet::options::Vsync();
             if (RowCheck("V-Sync", &vsync, "No tearing. Turn off for G-Sync / FreeSync. Takes effect at the next start."))
                 wet::options::SetVsync(vsync);
@@ -1266,6 +1275,14 @@ namespace
                 bool vibration = wet::options::Vibration();
                 if (RowCheck("Vibration", &vibration))
                     wet::options::SetVibration(vibration);
+#if GAME_DS
+                bool god = wet::options::GodMode();
+                if (RowCheck("God mode", &god, "For testing: the game's own cheat - you take no damage."))
+                    wet::options::SetGodMode(god);
+                bool ammo = wet::options::InfiniteAmmo();
+                if (RowCheck("Infinite ammo", &ammo, "For testing: the game's own cheat."))
+                    wet::options::SetInfiniteAmmo(ammo);
+#endif
                 bool aim = wet::options::MouseAim();
                 if (RowCheck("Mouse aim", &aim, "The mouse turns the camera and aims. F1 or Alt+Tab frees the cursor."))
                     wet::options::SetMouseAim(aim);
