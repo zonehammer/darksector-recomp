@@ -661,7 +661,7 @@ namespace
         bool folder = FromFolder();
         SetWindowTextW(Item(kSourceNote), folder
                            ? L"The folder with default.xex and Cache.Xbox360 (from extract-xiso, Xenia, etc.). It's copied."
-                           : L"A dump of your own Xbox 360 disc of Dark Sector (2011).");
+                           : L"A dump of your own Xbox 360 disc of Dark Sector (2008).");
         EnableWindow(Item(kDeleteIso), !folder && !s_busy);
         if (folder)
             SendMessageW(Item(kDeleteIso), BM_SETCHECK, BST_UNCHECKED, 0);

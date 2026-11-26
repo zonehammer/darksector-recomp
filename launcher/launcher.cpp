@@ -1586,7 +1586,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int show)
     DWORD style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX;
     AdjustWindowRect(&rc, style, FALSE);
     int w = rc.right - rc.left, h = rc.bottom - rc.top;
-    std::wstring title = L"Dark Sector Recomp " + std::wstring(WET_VERSION, WET_VERSION + std::strlen(WET_VERSION));
+    std::wstring title = L"Dark Sector Recompiled " + std::wstring(WET_VERSION, WET_VERSION + std::strlen(WET_VERSION));
     s_window = CreateWindowExW(0, wc.lpszClassName, title.c_str(), style,
                                (GetSystemMetrics(SM_CXSCREEN) - w) / 2, (GetSystemMetrics(SM_CYSCREEN) - h) / 2, w, h,
                                nullptr, nullptr, instance, nullptr);

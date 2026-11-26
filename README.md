@@ -17,19 +17,30 @@ nothing derived from the game is ever committed.
 
 ## Status
 
-**Early work: not playable yet.** The game's code is translated and the port is being
-brought up to boot. There's no release yet.
+**First release (0.1.0): playable.** It boots, plays, saves and loads. It hasn't been
+played through to the end yet; please report problems with `darksector.log` (next to the
+game's exe).
 
-## Planned features
+## Features
 
 - Native x64 Windows build of the game's own code, no emulator.
 - Higher resolutions (`resolution_scale` 1-3: 720p, 1440p, 4K) with SMAA / FXAA, AMD FSR
   / CAS or NVIDIA Image Scaling, and 16x anisotropic filtering.
-- Frame rate unlock, ultrawide and a field of view setting.
-- Controllers through SDL (Xbox, PlayStation and others), rumble; keyboard and mouse.
+- 30 FPS as on the console, or higher frame rates (60, 120, 144, 240 ...); particle effects
+  keep updating 30 times a second so they look as the game intended (F1 > Game).
+- Ultrawide (21:9, 32:9) with the HUD and menus kept 16:9 in the middle, and a field of
+  view slider.
+- Controllers through SDL (Xbox, PlayStation and others) with rumble; keyboard and mouse
+  with native mouse look and rebindable keys.
+- Button prompts that match what you play with: Xbox, PlayStation (the game's own PS3
+  art), or keyboard / mouse keys that follow your bindings.
+- Skips the startup logos; the game's network checks answered offline (no 30-second wait).
+- Some of the game's own graphics settings as switches (F1 > Game): cascaded shadows
+  (a big speed-up at high resolutions), soft shadow edges, depth of field in play.
+- Testing cheats: god mode and infinite ammo (the game's own).
 - Saves in `game\hdd` with automatic backups; achievements with pop-ups.
 - Settings overlay (F1), screenshots (F12), brightness / contrast / gamma / colour.
-- Launcher with settings and one-click updates.
+- Launcher with settings, save backups and one-click updates.
 
 ## Installing (Windows 10/11, 64-bit)
 
@@ -80,6 +91,8 @@ saves and settings stay.
    translator; XMA audio is decoded by Xenia's decoder and played with XAudio2.
 
 ## Credits
+
+- Icon art: zonehammer.
 
 - [XenonRecomp](https://github.com/hedge-dev/XenonRecomp) (hedge-dev): the recompiler.
 - [Xenia Canary](https://github.com/xenia-canary/xenia-canary): the resolve readback /
