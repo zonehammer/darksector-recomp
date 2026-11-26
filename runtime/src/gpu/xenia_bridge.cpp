@@ -139,6 +139,18 @@ namespace
     }
 }
 
+#if GAME_DS
+namespace wet::cvars
+{
+    int SwitchCount();
+    const char* SwitchLabel(int i);
+    const char* SwitchHelp(int i);
+    bool SwitchOn(int i);
+    void SetSwitch(int i, bool on);
+    bool SwitchesNeedRestart();
+}
+#endif
+
 namespace xe
 {
     void* Memory::RegisterPhysicalMemoryInvalidationCallback(PhysicalMemoryInvalidationCallback callback,
@@ -1073,6 +1085,24 @@ namespace
             ImGui::EndTable();
         }
 
+#if GAME_DS
+        // Dark Sector's own settings (ds_cvars.cpp), applied at startup.
+        void TabGame()
+        {
+            if (!BeginRows("game"))
+                return;
+            for (int i = 0; i < wet::cvars::SwitchCount(); i++)
+            {
+                bool on = wet::cvars::SwitchOn(i);
+                if (RowCheck(wet::cvars::SwitchLabel(i), &on, wet::cvars::SwitchHelp(i)))
+                    wet::cvars::SetSwitch(i, on);
+            }
+            if (wet::cvars::SwitchesNeedRestart())
+                Note("Restart the game to apply these changes.");
+            ImGui::EndTable();
+        }
+#endif
+
         void TabGraphics()
         {
             if (!BeginRows("graphics"))
@@ -1345,6 +1375,9 @@ namespace
                 if (ImGui::BeginTabItem("General")) { ImGui::Spacing(); TabGeneral(); ImGui::EndTabItem(); }
                 if (ImGui::BeginTabItem("Display")) { ImGui::Spacing(); TabDisplay(); ImGui::EndTabItem(); }
                 if (ImGui::BeginTabItem("Graphics")) { ImGui::Spacing(); TabGraphics(); ImGui::EndTabItem(); }
+#if GAME_DS
+                if (ImGui::BeginTabItem("Game")) { ImGui::Spacing(); TabGame(); ImGui::EndTabItem(); }
+#endif
                 if (ImGui::BeginTabItem("Performance")) { ImGui::Spacing(); TabPerformance(); ImGui::EndTabItem(); }
                 if (ImGui::BeginTabItem("Controls")) { ImGui::Spacing(); TabControls(); ImGui::EndTabItem(); }
                 if (ImGui::BeginTabItem("Achievements")) { ImGui::Spacing(); DrawAchievements(scale); ImGui::EndTabItem(); }

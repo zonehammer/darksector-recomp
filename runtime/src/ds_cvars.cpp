@@ -8,12 +8,18 @@
 // 0x820019B8 on/off (a byte), 0x820019CC a number (a float), the others a whole
 // number or a choice from a list (an int, by index).
 //
-// The constructor override records every object. Once the game runs (from the
-// first frame, VdSwap), game_settings.ini next to the game - lines
-// "Category.Name = value" - is read, and again whenever it changes (checked
-// once a second), and its values are written every frame, so the game can't
-// put them back. game_settings_list.txt lists every setting with its type and
-// current value (written once, a few seconds in).
+// The constructor override records every object. Settings are applied at
+// startup, before the game sets up its graphics (VdInitializeEngines), and
+// written again every frame so the game can't put them back. They are never
+// changed while the game runs: some (Graphics.SimplifiedBloom) crash the game
+// if changed after its effects are set up.
+//
+// Two sources:
+//  - the F1 "Game" tab's switches (kSwitches below), kept in game_switches.ini
+//    (written by the runtime; a change applies at the next start);
+//  - game_settings.ini, "Category.Name = value" lines (diagnostics: any
+//    setting), read once at startup.
+// game_settings_list.txt lists every setting with its type and value.
 #include "game.h"
 #if GAME_DS
 #include "kernel/kernel.h"
@@ -124,9 +130,20 @@ namespace
     };
     std::vector<Override> s_overrides;
 
-    void ReadOverrides()
+    void AddOverride(const std::string& name, double value, const char* from)
     {
-        s_overrides.clear();
+        auto it = s_byName.find(Lower(name));
+        if (it == s_byName.end())
+        {
+            Log("Game settings: no setting called %s", name.c_str());
+            return;
+        }
+        Log("Game settings: %s = %g (%s; was %s)", name.c_str(), value, from, ValueText(it->second).c_str());
+        s_overrides.push_back({ it->second, name, value });
+    }
+
+    void ReadSettingsFile()
+    {
         std::FILE* f = std::fopen("game_settings.ini", "r");
         if (!f)
             return;
@@ -139,67 +156,75 @@ namespace
             auto eq = l.find('=');
             if (eq == std::string::npos)
                 continue;
-            auto trim = [](std::string s) {
-                size_t a = s.find_first_not_of(" \t\r\n"), b = s.find_last_not_of(" \t\r\n");
-                return a == std::string::npos ? std::string() : s.substr(a, b - a + 1);
+            auto trim = [](std::string t) {
+                size_t a = t.find_first_not_of(" \t\r\n"), b = t.find_last_not_of(" \t\r\n");
+                return a == std::string::npos ? std::string() : t.substr(a, b - a + 1);
             };
             std::string name = trim(l.substr(0, eq)), value = trim(l.substr(eq + 1));
-            if (name.empty() || value.empty())
+            if (name.empty() || value.empty() || name.find(' ') != std::string::npos)
                 continue;
-            auto it = s_byName.find(Lower(name));
-            if (it == s_byName.end())
-            {
-                Log("Game settings: no setting called %s", name.c_str());
-                continue;
-            }
-            Override o{ it->second, name, std::atof(value.c_str()) };
-            s_overrides.push_back(o);
-            Log("Game settings: %s = %s (was %s)", name.c_str(), value.c_str(), ValueText(it->second).c_str());
+            AddOverride(name, std::atof(value.c_str()), "game_settings.ini");
         }
         std::fclose(f);
     }
-}
 
-extern "C" void __imp__sub_821923B0(PPCContext& ctx, uint8_t* base);
-PPC_FUNC(sub_821923B0)
-{
-    uint32_t object = ctx.r3.u32;
-    __imp__sub_821923B0(ctx, base);
-    std::lock_guard g(s_lock);
-    s_objects.push_back(object);
-}
-
-namespace wet::cvars
-{
-    // Once a frame (VdSwap).
-    void ApplyGameSettings()
+    // The F1 "Game" tab: on/off switches over the game's own settings. "on" is
+    // the switch as shown; setting = on ? onValue : !onValue.
+    struct Switch
     {
-        using clock = std::chrono::steady_clock;
-        static const auto start = clock::now();
-        static auto lastCheck = clock::time_point{};
-        static std::filesystem::file_time_type lastWrite{};
-        static bool listed = false, hadFile = false;
-        if (!s_named)
-            NameAll();
-        auto now = clock::now();
-        if (!listed && now - start > std::chrono::seconds(5))
-        {
-            listed = true;
-            WriteList();
-        }
-        if (now - lastCheck > std::chrono::seconds(1))
-        {
-            lastCheck = now;
-            std::error_code ec;
-            auto t = std::filesystem::last_write_time("game_settings.ini", ec);
-            bool has = !ec;
-            if (has != hadFile || (has && t != lastWrite))
+        const char* key;      // in game_switches.ini
+        const char* label;
+        const char* help;
+        const char* setting;  // the game's setting
+        bool onValue;         // its value when the switch is on
+        bool gameDefault;     // the switch as the game has it
+    };
+    constexpr Switch kSwitches[] = {
+        { "post_effects", "Post effects", "The levels' colour filters (the grey look), bloom, blur and depth of field. Off: plain picture.", "Graphics.PostFX", true, true },
+        { "full_bloom", "Full bloom", "The game's full glow around bright lights. Off: its cheaper, simpler bloom.", "Graphics.SimplifiedBloom", false, true },
+        { "cascaded_shadows", "Cascaded shadows", "The large sun / main-light shadows (a 2048x2048 shadow map, the most costly effect at high resolutions).", "Graphics.EnableCSM", true, true },
+        { "full_size_effects", "Full-size effects", "Effects drawn at full size. Off: the game's smaller render targets (faster, softer).", "Graphics.ReducedTargetSize", false, true },
+        { "blurred_shadows", "Soft shadow edges", "Blurs the shadows on screen. Off: sharper edges, a little faster.", "Graphics.BlurScreenShadow", true, true },
+        { "gameplay_dof", "Depth of field in play", "Background blur in gameplay too, not only in cutscenes.", "Graphics.CinematicDOFOnly", false, false },
+    };
+    constexpr int kSwitchCount = int(sizeof(kSwitches) / sizeof(kSwitches[0]));
+    bool s_switch[kSwitchCount], s_switchAtStart[kSwitchCount];
+    std::once_flag s_switchesLoaded;
+
+    void LoadSwitches()
+    {
+        std::call_once(s_switchesLoaded, [] {
+            for (int i = 0; i < kSwitchCount; i++)
+                s_switch[i] = kSwitches[i].gameDefault;
+            if (std::FILE* f = std::fopen("game_switches.ini", "r"))
             {
-                hadFile = has;
-                lastWrite = t;
-                ReadOverrides();
+                char line[256], key[128];
+                int v;
+                while (std::fgets(line, sizeof line, f))
+                    if (std::sscanf(line, " %127[a-z_] = %d", key, &v) == 2)
+                        for (int i = 0; i < kSwitchCount; i++)
+                            if (!std::strcmp(key, kSwitches[i].key))
+                                s_switch[i] = v != 0;
+                std::fclose(f);
             }
-        }
+            for (int i = 0; i < kSwitchCount; i++)
+                s_switchAtStart[i] = s_switch[i];
+        });
+    }
+
+    void SaveSwitches()
+    {
+        std::FILE* f = std::fopen("game_switches.ini", "w");
+        if (!f)
+            return;
+        std::fprintf(f, "# Dark Sector's own settings (F1 > Game). Written by the game; 1 = on.\n");
+        for (int i = 0; i < kSwitchCount; i++)
+            std::fprintf(f, "%s = %d\n", kSwitches[i].key, s_switch[i] ? 1 : 0);
+        std::fclose(f);
+    }
+
+    void ApplyNow()
+    {
         for (auto& o : s_overrides)
         {
             uint32_t a = o.setting.object + 112;
@@ -215,6 +240,74 @@ namespace wet::cvars
             else
                 St32(a, uint32_t(int32_t(o.value)));
         }
+    }
+}
+
+extern "C" void __imp__sub_821923B0(PPCContext& ctx, uint8_t* base);
+PPC_FUNC(sub_821923B0)
+{
+    uint32_t object = ctx.r3.u32;
+    __imp__sub_821923B0(ctx, base);
+    std::lock_guard g(s_lock);
+    s_objects.push_back(object);
+}
+
+namespace wet::cvars
+{
+    // Once, before the game sets up its graphics (VdInitializeEngines): name
+    // every setting, take the switches and game_settings.ini, write them.
+    void ApplyAtStartup()
+    {
+        static bool done = false;
+        if (done)
+            return;
+        done = true;
+        NameAll();
+        LoadSwitches();
+        for (int i = 0; i < kSwitchCount; i++)
+            if (s_switchAtStart[i] != kSwitches[i].gameDefault)
+                AddOverride(kSwitches[i].setting, (s_switchAtStart[i] ? kSwitches[i].onValue : !kSwitches[i].onValue) ? 1 : 0,
+                            kSwitches[i].label);
+        ReadSettingsFile();
+        ApplyNow();
+    }
+
+    // Once a frame (VdSwap): the same values again, so the game keeps them.
+    void ApplyGameSettings()
+    {
+        ApplyAtStartup();
+        static const auto start = std::chrono::steady_clock::now();
+        static bool listed = false;
+        if (!listed && std::chrono::steady_clock::now() - start > std::chrono::seconds(5))
+        {
+            listed = true;
+            WriteList();
+        }
+        ApplyNow();
+    }
+
+    // F1 "Game" tab.
+    int SwitchCount() { return kSwitchCount; }
+    const char* SwitchLabel(int i) { return kSwitches[i].label; }
+    const char* SwitchHelp(int i) { return kSwitches[i].help; }
+    bool SwitchOn(int i)
+    {
+        LoadSwitches();
+        return s_switch[i];
+    }
+    void SetSwitch(int i, bool on)
+    {
+        LoadSwitches();
+        s_switch[i] = on;
+        SaveSwitches();
+    }
+    bool SwitchesNeedRestart()
+    {
+        LoadSwitches();
+        for (int i = 0; i < kSwitchCount; i++)
+            if (s_switch[i] != s_switchAtStart[i])
+                return true;
+        return false;
     }
 }
 #endif

@@ -1,4 +1,5 @@
 // Video (Vd*), audio (XAudio/XMA), network (NetDll) and crypto (XeCrypt/XeKeys) imports.
+#include "../game.h"
 #include "kernel.h"
 #include "threads.h"
 #include "xma.h"
@@ -65,7 +66,17 @@ GUEST_IMPORT(VdGetCurrentDisplayInformation)
     TraceCall("VdGetCurrentDisplayInformation", ctx, "partially filled");
 }
 
-GUEST_IMPORT(VdInitializeEngines) { TraceCall("VdInitializeEngines", ctx); Ret(ctx, 1); }
+#if GAME_DS
+namespace wet::cvars { void ApplyAtStartup(); }
+#endif
+GUEST_IMPORT(VdInitializeEngines)
+{
+    TraceCall("VdInitializeEngines", ctx);
+#if GAME_DS
+    cvars::ApplyAtStartup();   // the game's own settings, before it sets up its graphics
+#endif
+    Ret(ctx, 1);
+}
 GUEST_IMPORT(VdShutdownEngines) {}
 GUEST_IMPORT(VdIsHSIOTrainingSucceeded) { Ret(ctx, 1); }
 GUEST_IMPORT(VdRetrainEDRAM) { Ret(ctx, 0); }
