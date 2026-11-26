@@ -24,6 +24,10 @@ savevmx_14_address   = 0x827D7760
 restvmx_64_address   = 0x827D7A8C
 savevmx_64_address   = 0x827D77F4
 
+# CRT setjmp/longjmp (libjpeg's error handling uses them; same CRT as Conan's)
+setjmp_address  = 0x829A39C0
+longjmp_address = 0x829A36A0
+
 # Functions whose branches or switch tables leave the analyser's bounds
 # (see tools/fix_switch_bounds.py).
 functions = [

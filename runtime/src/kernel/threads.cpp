@@ -713,6 +713,15 @@ GUEST_IMPORT(KeTlsAlloc)
         if (!s_tlsUsed[i])
         {
             s_tlsUsed[i] = true;
+            // A new slot reads 0 on every thread (as TlsAlloc on Windows). Dark Sector
+            // frees and re-allocates slots as it rebuilds its sound / job objects; the
+            // value left by the old owner was read as the new owner's pointer (crash on
+            // the main menu).
+            for (auto& w : s_threads)
+                if (auto t = w.lock(); t && t->tlsSlots)
+                    St32(t->tlsSlots + i * 4, 0);
+            if (std::getenv("DS_TRACE_TLS"))
+                Log("KeTlsAlloc -> %u (lr %08X)", i, uint32_t(ctx.lr));
             return Ret(ctx, i);
         }
     }
@@ -727,6 +736,8 @@ GUEST_IMPORT(KeTlsFree)
     if (i >= s_tlsUsed.size())
         return Ret(ctx, 0);
     s_tlsUsed[i] = false;
+    if (std::getenv("DS_TRACE_TLS"))
+        Log("KeTlsFree(%u) (lr %08X)", i, uint32_t(ctx.lr));
     Ret(ctx, 1);
 }
 

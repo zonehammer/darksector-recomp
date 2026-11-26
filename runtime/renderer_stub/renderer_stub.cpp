@@ -26,4 +26,7 @@ namespace wet::renderer
     void ToggleOverlay() {}
     bool OverlayOpen() { return false; }
     uint32_t ReadRegister(uint32_t) { return 0; }
+    float DisplayAspect() { return 16.0f / 9.0f; }
+    void SaveScreenshot() {}
+    void RefreshOverlay() {}
 }

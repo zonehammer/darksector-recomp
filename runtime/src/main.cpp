@@ -170,7 +170,7 @@ int main(int argc, char** argv)
     if (gameDir.empty() || !fs::exists(gameDir / "default.xex"))
     {
         LogFatal("Could not find the game. Run tools/prepare_game.py first, or pass --game <folder containing default.xex>.");
-        os::ShowFatalMessage("Could not find the game files.\n\nPut your extracted WET disc in game\\extracted next to "
+        os::ShowFatalMessage("Could not find the game files.\n\nPut your extracted Dark Sector disc in game\\extracted next to "
                              "DarkSectorRecomp.exe, so that game\\extracted\\default.xex exists.");
         return 1;
     }

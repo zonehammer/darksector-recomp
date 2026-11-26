@@ -44,6 +44,12 @@ if(NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")
         "  cmake -B build -G Ninja -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl -DCMAKE_BUILD_TYPE=Release")
 endif()
 
+# Newer Visual Studio STL versions refuse a slightly older clang-cl
+# (STL1000); the STL works with it.
+if(MSVC)
+    add_compile_definitions(_ALLOW_COMPILER_AND_STL_VERSION_MISMATCH)
+endif()
+
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")

@@ -444,6 +444,21 @@ namespace
                     GpuStore(g, data, addr & 3);
                 break;
             }
+            case 0x5B: // EVENT_WRITE_ZPD: occlusion query begin / end. At the end (D3D
+            {          // marks the report 0xFFFFFEED) answer a fixed count, as Xenia does.
+                r.Read();
+                uint32_t report = Reg(0x2325);   // RB_SAMPLE_COUNT_ADDR
+                if (uint32_t g = report ? GpuAddr(report & ~3u) : 0)
+                {
+                    auto* p = reinterpret_cast<uint32_t*>(HostPtr(g));
+                    const uint32_t kDone = 0xEDFEFFFFu;   // 0xFFFFFEED as stored by D3D
+                    bool end = (p[4] == kDone && p[5] == kDone) || (p[2] == kDone && p[3] == kDone);
+                    std::memset(p, 0, 32);
+                    if (end)
+                        p[0] = p[4] = 1000;   // Total_A, ZPass_A (Xenia's layout and byte order)
+                }
+                break;
+            }
             case 0x45: // COND_WRITE: poll info, poll addr/reg, ref, mask, write addr/reg, value
             {
                 uint32_t info = r.Read(), pollAddr = r.Read(), ref = r.Read(), mask = r.Read();

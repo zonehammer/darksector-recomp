@@ -348,7 +348,23 @@ namespace
             }
         }
         if (apc)
-            TraceCall("NtReadFile/NtWriteFile", ctx, "APC completion routines are not supported yet");
+        {
+            // Completion routine (ApcRoutine(ApcContext, IoStatusBlock, 0)): queued to
+            // this thread, run at its next alertable wait, as Xenia does. The low bit of
+            // the routine address is a flag, not part of it.
+            GuestThread* self = CurrentThread();
+            if (self)
+            {
+                {
+                    std::lock_guard lock(DispatchLock());
+                    self->apcs.push_back({ apc & ~1u, Arg(ctx, 3), ioStatus, 0 });
+                }
+                DispatchNotify(self);
+            }
+            static std::atomic<int> logged{ 0 };
+            if (logged++ < 1)
+                Log("NtReadFile/NtWriteFile: completion routine %08X queued (APC)", apc);
+        }
     }
 
     std::string PathFromObjectAttributes(uint32_t objAttr)
