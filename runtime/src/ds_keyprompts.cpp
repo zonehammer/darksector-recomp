@@ -28,6 +28,7 @@
 #include "ppc_context.h"
 #include "prompt_art.h"
 
+#include <algorithm>
 #include <atomic>
 #include <cmath>
 
@@ -420,12 +421,57 @@ namespace wet::keyprompts
     }
 }
 
+// The development build label left in the HUD (Interface/Huds/
+// NewGameHud_menu.scene, "Game/WorkInProgress"): the English text, in
+// Languages.cl (UTF-16 big endian), is "BUILD 128482135  - WORK IN PROGRESS -
+// DO NOT DISTRIBUTE" and shows, flickering, at the top of the screen. It's
+// turned into spaces as the game unpacks the file (same length, nothing drawn).
+namespace
+{
+    void BlankBuildLabel(uint8_t* out, uint32_t size)
+    {
+        static const char16_t kEnd[] = u"DO NOT DISTRIBUTE";
+        static const char16_t kStart[] = u"BUILD ";
+        static auto be = [](const char16_t* t, std::vector<uint8_t>& v) {
+            for (; *t; t++) { v.push_back(uint8_t(*t >> 8)); v.push_back(uint8_t(*t)); }
+        };
+        static std::vector<uint8_t> end, start;
+        static std::once_flag once;
+        std::call_once(once, [] { be(kEnd, end); be(kStart, start); });
+        if (size < end.size() || size > (1u << 24))
+            return;
+        uint8_t* stop = out + size;
+        for (uint8_t* e = out; (e = std::search(e, stop, end.begin(), end.end())) != stop; e += end.size())
+        {
+            if ((e - out) & 1)
+                continue;
+            // The label's start: "BUILD " within 120 characters before.
+            uint8_t* from = e - std::min<ptrdiff_t>(e - out, 240);
+            uint8_t* b = std::search(from, e, start.begin(), start.end());
+            if (b == e || ((b - out) & 1))
+                continue;
+            for (uint8_t* c = b; c < e + end.size(); c += 2)
+            {
+                c[0] = 0;
+                c[1] = ' ';
+            }
+            static bool logged = false;
+            if (!logged)
+            {
+                logged = true;
+                wet::Log("HUD: the development build label (WORK IN PROGRESS - DO NOT DISTRIBUTE) blanked");
+            }
+        }
+    }
+}
+
 // lzf_decompress(in, in size, out, out size): returns the size unpacked.
 extern "C" void __imp__sub_828041C8(PPCContext& ctx, uint8_t* base);
 PPC_FUNC(sub_828041C8)
 {
     uint32_t in = ctx.r3.u32, inLen = ctx.r4.u32, out = ctx.r5.u32;
     __imp__sub_828041C8(ctx, base);
+    BlankBuildLabel(base + out, ctx.r3.u32);
     if (!s_haveDxt || ctx.r3.u32 != 16384)
         return;
     std::lock_guard g(s_lock);
