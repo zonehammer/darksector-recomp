@@ -977,14 +977,14 @@ static void UpdatePauseQuit(PPCContext& ctx)
 
 #if GAME_DS
 namespace wet::cheats { void ApplyCheats(); }
-namespace wet::cvars { void ApplyGameSettings(); }
+namespace wet::gamesettings { void ApplyGameSettings(); }
 #endif
 
 GUEST_IMPORT(VdSwap)
 {
 #if GAME_DS
     cheats::ApplyCheats();
-    cvars::ApplyGameSettings();
+    gamesettings::ApplyGameSettings();
 #endif
     uint32_t buffer = Arg(ctx, 0), fetch = Arg(ctx, 1);
     uint32_t frontPtr = Arg(ctx, 5), widthPtr = Arg(ctx, 8), heightPtr = Arg(ctx, 9);

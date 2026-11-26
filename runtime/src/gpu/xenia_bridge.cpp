@@ -140,7 +140,7 @@ namespace
 }
 
 #if GAME_DS
-namespace wet::cvars
+namespace wet::gamesettings
 {
     int SwitchCount();
     const char* SwitchLabel(int i);
@@ -1091,13 +1091,13 @@ namespace
         {
             if (!BeginRows("game"))
                 return;
-            for (int i = 0; i < wet::cvars::SwitchCount(); i++)
+            for (int i = 0; i < wet::gamesettings::SwitchCount(); i++)
             {
-                bool on = wet::cvars::SwitchOn(i);
-                if (RowCheck(wet::cvars::SwitchLabel(i), &on, wet::cvars::SwitchHelp(i)))
-                    wet::cvars::SetSwitch(i, on);
+                bool on = wet::gamesettings::SwitchOn(i);
+                if (RowCheck(wet::gamesettings::SwitchLabel(i), &on, wet::gamesettings::SwitchHelp(i)))
+                    wet::gamesettings::SetSwitch(i, on);
             }
-            if (wet::cvars::SwitchesNeedRestart())
+            if (wet::gamesettings::SwitchesNeedRestart())
                 Note("Restart the game to apply these changes.");
             ImGui::EndTable();
         }

@@ -67,13 +67,13 @@ GUEST_IMPORT(VdGetCurrentDisplayInformation)
 }
 
 #if GAME_DS
-namespace wet::cvars { void ApplyAtStartup(); }
+namespace wet::gamesettings { void ApplyAtStartup(); }
 #endif
 GUEST_IMPORT(VdInitializeEngines)
 {
     TraceCall("VdInitializeEngines", ctx);
 #if GAME_DS
-    cvars::ApplyAtStartup();   // the game's own settings, before it sets up its graphics
+    gamesettings::ApplyAtStartup();   // the game's own settings, before it sets up its graphics
 #endif
     Ret(ctx, 1);
 }

@@ -252,7 +252,7 @@ PPC_FUNC(sub_821923B0)
     s_objects.push_back(object);
 }
 
-namespace wet::cvars
+namespace wet::gamesettings
 {
     // Once, before the game sets up its graphics (VdInitializeEngines): name
     // every setting, take the switches and game_settings.ini, write them.
