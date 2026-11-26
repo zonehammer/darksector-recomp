@@ -179,11 +179,12 @@ namespace
         bool onValue;         // its value when the switch is on
         bool gameDefault;     // the switch as the game has it
     };
+    // Only settings tried on a real PC. Left out: Graphics.SimplifiedBloom (the
+    // game crashes setting up the simpler bloom), Graphics.EnableCSM and
+    // Graphics.ReducedTargetSize (one of them left the world black but for the
+    // player) - development settings the retail game doesn't cope with.
     constexpr Switch kSwitches[] = {
         { "post_effects", "Post effects", "The levels' colour filters (the grey look), bloom, blur and depth of field. Off: plain picture.", "Graphics.PostFX", true, true },
-        { "full_bloom", "Full bloom", "The game's full glow around bright lights. Off: its cheaper, simpler bloom.", "Graphics.SimplifiedBloom", false, true },
-        { "cascaded_shadows", "Cascaded shadows", "The large sun / main-light shadows (a 2048x2048 shadow map, the most costly effect at high resolutions).", "Graphics.EnableCSM", true, true },
-        { "full_size_effects", "Full-size effects", "Effects drawn at full size. Off: the game's smaller render targets (faster, softer).", "Graphics.ReducedTargetSize", false, true },
         { "blurred_shadows", "Soft shadow edges", "Blurs the shadows on screen. Off: sharper edges, a little faster.", "Graphics.BlurScreenShadow", true, true },
         { "gameplay_dof", "Depth of field in play", "Background blur in gameplay too, not only in cutscenes.", "Graphics.CinematicDOFOnly", false, false },
     };

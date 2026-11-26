@@ -162,6 +162,14 @@ int main(int argc, char** argv)
         }
     }
 
+    {
+        // The last run's log is kept as <name>_prev.log (a crash isn't lost when
+        // the game is started again straight away).
+        std::error_code ec;
+        fs::path log(logPath);
+        if (fs::exists(log, ec))
+            fs::rename(log, log.parent_path() / (log.stem().string() + "_prev" + log.extension().string()), ec);
+    }
     LogInit(logPath.c_str());
     Log("Dark Sector Recomp %s", WET_VERSION);
 
