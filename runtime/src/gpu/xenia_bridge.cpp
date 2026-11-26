@@ -1301,6 +1301,13 @@ namespace
                 bool invert = wet::options::MouseInvertY();
                 if (RowCheck("Invert mouse Y", &invert))
                     wet::options::SetMouseInvertY(invert);
+#if GAME_DS
+                bool native = wet::options::MouseNative();
+                if (RowCheck("Native mouse look", &native,
+                             "The mouse turns the camera directly by an angle (no stick dead zone, acceleration or "
+                             "turn speed limit). Off: the mouse acts as the right stick."))
+                    wet::options::SetMouseNative(native);
+#endif
 #if GAME_WET
                 bool native = wet::options::MouseNative();
                 if (RowCheck("Native mouse look", &native,

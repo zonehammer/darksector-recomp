@@ -371,7 +371,9 @@ namespace wet::options
         // mouse look would take the mouse away from the right stick with no
         // hook to give it to.
         s_mouseDirect = false;
-        s_mouseNative = false;
+#if !GAME_DS
+        s_mouseNative = false;   // Dark Sector: ds_mouselook.cpp
+#endif
         s_musicMode = 0;
         s_outfit = 0;
         s_hair = 0;
