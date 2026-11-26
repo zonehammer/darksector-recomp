@@ -162,7 +162,7 @@ namespace wet::options
             std::fprintf(f, "# widescreen: 1 = fill wider screens and windows (21:9, 32:9) instead of 16:9 with bars\n");
             std::fprintf(f, "widescreen = %d\n", s_widescreen.load());
 #endif
-#if GAME_WET
+#if GAME_WET || GAME_DS
             std::fprintf(f, "# widescreen_hud: 1 = keep the HUD and menus 16:9 in the middle of a wider screen, 0 = stretch them\n");
             std::fprintf(f, "widescreen_hud = %d\n", s_widescreenHud.load());
 #endif
@@ -379,8 +379,6 @@ namespace wet::options
         s_hair = 0;
 #if !GAME_DS
         s_widescreen = false;
-#else
-        s_widescreenHud = false;   // the HUD can't be told apart from the scene yet
 #endif
         s_hideBorders = false;
         s_filmGrain = 100;

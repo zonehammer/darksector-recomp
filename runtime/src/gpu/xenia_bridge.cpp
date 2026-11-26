@@ -466,7 +466,7 @@ namespace
                              ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize |
                                  ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoFocusOnAppearing |
                                  ImGuiWindowFlags_NoNav);
-                ImGui::Text("%.0f FPS", fps_);
+                ImGui::TextColored(ImVec4(0.92f, 0.22f, 0.22f, 1.0f), "%.0f FPS", fps_);   // Dark Sector red
                 ImGui::End();
             }
 
@@ -523,6 +523,8 @@ namespace
             float alpha = float(std::min({ t / 0.3, (kPopupSeconds - t) / 0.5, 1.0 }));
             ImGui::PushStyleVar(ImGuiStyleVar_Alpha, alpha);
             ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 8 * scale);
+            ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 2 * scale);   // a red edge (Dark Sector)
+            ImGui::PushStyleColor(ImGuiCol_Border, ImVec4(0.78f, 0.16f, 0.17f, 0.9f));
             ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x * 0.5f, 24 * scale), ImGuiCond_Always, ImVec2(0.5f, 0.0f));
             ImGui::SetNextWindowBgAlpha(0.85f);
             ImGui::Begin("##achievement", nullptr,
@@ -536,13 +538,14 @@ namespace
                 ImGui::SameLine();
             }
             ImGui::BeginGroup();
-            ImGui::TextColored(ImVec4(0.55f, 0.85f, 0.35f, 1.0f), "Achievement unlocked - %uG", s_popup.gamerscore);
+            ImGui::TextColored(ImVec4(0.92f, 0.22f, 0.22f, 1.0f), "Achievement unlocked - %uG", s_popup.gamerscore);
             ImGui::TextUnformatted(s_popup.name.c_str());
             if (!s_popup.description.empty())
                 ImGui::TextDisabled("%s", s_popup.description.c_str());
             ImGui::EndGroup();
             ImGui::End();
-            ImGui::PopStyleVar(2);
+            ImGui::PopStyleColor();
+            ImGui::PopStyleVar(3);
         }
 
         void DrawAchievements(float scale)
@@ -911,7 +914,7 @@ namespace
             ImGui::TableNextColumn();
             ImGui::TableNextColumn();
             ImGui::PushTextWrapPos(0);
-            ImGui::TextColored(ImVec4(1.0f, 0.78f, 0.35f, 1.0f), "%s", text);
+            ImGui::TextColored(ImVec4(0.95f, 0.38f, 0.36f, 1.0f), "%s", text);
             ImGui::PopTextWrapPos();
         }
 
@@ -1050,6 +1053,12 @@ namespace
                 bool wide = wet::options::Widescreen();
                 if (RowCheck("Widescreen / ultrawide", &wide, "Fills 21:9 and 32:9 screens with a wider view in play. Sharpest after a restart."))
                     wet::options::SetWidescreen(wide);
+                if (wide)
+                {
+                    bool hud = wet::options::WidescreenHud();
+                    if (RowCheck("HUD in the middle", &hud, "Keeps the HUD and menus 16:9 in the middle of a wider screen."))
+                        wet::options::SetWidescreenHud(hud);
+                }
             }
 #endif
 #if GAME_WET
@@ -1759,6 +1768,12 @@ namespace wet::renderer
         if (s_running)
             return true;
         cvars::log_to_stdout = false;
+        {
+            // The last run's GPU log is kept as xenia_gpu_prev.log (as darksector.log).
+            std::error_code ec;
+            if (std::filesystem::exists("xenia_gpu.log", ec))
+                std::filesystem::rename("xenia_gpu.log", "xenia_gpu_prev.log", ec);
+        }
         cvars::log_file = "xenia_gpu.log";
         // Present from the window's thread on WM_PAINT (Xenia's most conservative mode).
         cvars::host_present_from_non_ui_thread = false;
@@ -1857,6 +1872,16 @@ namespace wet::renderer
             return false;
         s_memory = std::make_unique<xe::Memory>(membase, physical);
         renderer_host::SetPhysicalWriteCallback(OnPhysicalWrite);
+#if GAME_DS
+        // Dark Sector's final scene pass (MultiGradeFinalScenePass: the 1280x720
+        // scene, bloom and colour grading drawn to the frame, from an F9 trace);
+        // the draws after it in a frame are the HUD and menus, kept 16:9 in the
+        // middle of a wider screen. No border rectangles here. Film grain stays
+        // at 100% (the film_grain option is off for Dark Sector), so its
+        // constant isn't touched.
+        xe::gpu::wet_grain_ps_hash = 0x029708117BD45251ull;
+        xe::gpu::wet_border_ps_hash = 1;   // (none)
+#endif
         // Diagnostics: which shader / constant the film grain slider scales.
         if (const char* v = std::getenv("DS_GRAIN_PS"))
             xe::gpu::wet_grain_ps_hash = std::strtoull(v, nullptr, 16);
