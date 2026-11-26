@@ -1,0 +1,188 @@
+{
+  "$schema": "https://recomplauncher.com/schema/recomplauncher.json",
+  "format": 1,
+  "name": "Dark Sector Recompiled",
+  "repo": "zonehammer/darksector-recomp",
+  "inputs": [
+    {
+      "id": "game",
+      "label": "Your copy of Dark Sector for Xbox 360 (title ID 445007D4): its disc image (.iso), or its extracted folder with default.xex. Tested with the Europe disc.",
+      "formats": [{ "type": "file" }, { "type": "folder" }],
+      "check": { "ids": ["445007D4"] }
+    }
+  ],
+  "prepare": {
+    "program": ["DarkSectorRecompiled.exe", "DarkSectorSetup.exe"],
+    "args": ["--prepare", "--game={input:game}", "--out", "{install}/DS"],
+    "label": "Building the game from your disc (10-30 minutes the first time; the build tools are downloaded if needed)",
+    "done": ["{install}/DS/darksector-recomp/build/runtime/DarkSectorRecomp.exe"],
+    "keeps_copy": true
+  },
+  "start": {
+    "program": ["DarkSectorRecompiled.exe", "DarkSectorSetup.exe"],
+    "args": ["--play", "{install}/DS"]
+  },
+  "system": {
+    "windows": { "version": "10.0.17134", "graphics": { "d3d12": "12_0" } }
+  },
+  "saves": [
+    "{install}/DS/darksector-recomp/game/hdd/content/445007D4",
+    "{install}/DS/darksector-recomp/game/hdd/achievements.ini"
+  ],
+  "folders": {
+    "game": [{ "path": "{install}/DS" }],
+    "saves": [{ "path": "{install}/DS/darksector-recomp/game/hdd/content/445007D4" }],
+    "logs": [{ "path": "{install}/DS/darksector-recomp/build/runtime" }],
+    "screenshots": [{ "path": "{install}/DS/darksector-recomp/build/runtime/screenshots" }]
+  },
+  "exit_codes": {
+    "3": "The game isn't built yet. Press Set Up on the game's page to build it from your disc."
+  },
+  "config": [
+    {
+      "id": "main",
+      "format": "ini",
+      "file": [{ "path": "{install}/DS/darksector-recomp/build/runtime/darksector.ini" }]
+    }
+  ],
+  "settings": [
+    {
+      "id": "window", "label": "Window", "group": "Display",
+      "help": "Fullscreen or a window you can resize.",
+      "choices": [
+        { "label": "Windowed", "set": { "fullscreen": "0" } },
+        { "label": "Fullscreen", "set": { "fullscreen": "1" } }
+      ],
+      "defaults": { "fullscreen": "0" }
+    },
+    {
+      "id": "resolution", "label": "Resolution", "group": "Display",
+      "help": "What the game draws at. 720p is the console's own; 4K needs a fast graphics card. Applies at the next start.",
+      "choices": [
+        { "label": "720p", "set": { "resolution_scale": "1" } },
+        { "label": "1440p", "set": { "resolution_scale": "2" } },
+        { "label": "4K", "set": { "resolution_scale": "3" } }
+      ],
+      "defaults": { "resolution_scale": "1" }
+    },
+    {
+      "id": "fps", "label": "Frame rate", "group": "Display",
+      "help": "30 is the console's own. Higher is smoother; particle effects still update 30 times a second so they look as intended (Effects at 30 FPS).",
+      "choices": [
+        { "label": "30 (console)", "set": { "fps": "30" } },
+        { "label": "60", "set": { "fps": "60" } },
+        { "label": "120", "set": { "fps": "120" } },
+        { "label": "144", "set": { "fps": "144" } },
+        { "label": "240", "set": { "fps": "240" } },
+        { "label": "Match my monitor", "set": { "fps": "0" } }
+      ],
+      "defaults": { "fps": "30" }
+    },
+    {
+      "id": "vsync", "label": "V-Sync", "group": "Display",
+      "help": "On: never tears. Off: shows each frame at once, best with G-Sync or FreeSync. Applies at the next start.",
+      "choices": [
+        { "label": "Off", "set": { "vsync": "0" } },
+        { "label": "On", "set": { "vsync": "1" } }
+      ],
+      "defaults": { "vsync": "0" }
+    },
+    {
+      "id": "ultrawide", "label": "Ultrawide", "group": "Display",
+      "help": "Fill 21:9 and 32:9 screens instead of 16:9 with bars.",
+      "choices": [
+        { "label": "Off", "set": { "widescreen": "0" } },
+        { "label": "On", "set": { "widescreen": "1" } }
+      ],
+      "defaults": { "widescreen": "0" }
+    },
+    {
+      "id": "ultrawide_hud", "label": "Ultrawide HUD", "group": "Display",
+      "help": "Keep the HUD and menus 16:9 in the middle of a wider screen, or stretch them across it.",
+      "choices": [
+        { "label": "In the middle", "set": { "widescreen_hud": "1" } },
+        { "label": "Stretched", "set": { "widescreen_hud": "0" } }
+      ],
+      "defaults": { "widescreen_hud": "1" },
+      "when": { "widescreen": "1" }
+    },
+    {
+      "id": "antialiasing", "label": "Anti-aliasing", "group": "Graphics",
+      "help": "Smooths jagged edges. SMAA is the sharpest.",
+      "choices": [
+        { "label": "Off", "set": { "antialiasing": "0" } },
+        { "label": "FXAA", "set": { "antialiasing": "1" } },
+        { "label": "FXAA (extreme)", "set": { "antialiasing": "2" } },
+        { "label": "SMAA", "set": { "antialiasing": "3" } }
+      ],
+      "defaults": { "antialiasing": "0" }
+    },
+    {
+      "id": "scaling", "label": "Scaling", "group": "Graphics",
+      "help": "How the picture is fitted to your screen. FSR and NVIDIA Image Scaling sharpen it as they upscale.",
+      "choices": [
+        { "label": "Bilinear", "set": { "filter": "0" } },
+        { "label": "AMD CAS (sharpen)", "set": { "filter": "1" } },
+        { "label": "AMD FSR", "set": { "filter": "2" } },
+        { "label": "NVIDIA Image Scaling", "set": { "filter": "3" } }
+      ],
+      "defaults": { "filter": "0" }
+    },
+    {
+      "id": "effects_30fps", "label": "Effects at 30 FPS", "group": "Graphics",
+      "help": "Above 30 FPS, particle effects (sparks, the glaive hitting walls) update 30 times a second, as the game was made for. Off, they can flash on screen.",
+      "choices": [
+        { "label": "On", "set": { "effects_30fps": "1" } },
+        { "label": "Off", "set": { "effects_30fps": "0" } }
+      ],
+      "defaults": { "effects_30fps": "1" }
+    },
+    {
+      "id": "button_prompts", "label": "Button prompts", "group": "Controls",
+      "help": "Automatic shows your keys with no controller, PlayStation symbols with a PlayStation controller, else Xbox. Applies at the next start.",
+      "choices": [
+        { "label": "Automatic", "set": { "button_prompts": "0" } },
+        { "label": "Xbox", "set": { "button_prompts": "1" } },
+        { "label": "PlayStation", "set": { "button_prompts": "2" } },
+        { "label": "Keyboard / mouse", "set": { "button_prompts": "3" } }
+      ],
+      "defaults": { "button_prompts": "0" }
+    },
+    {
+      "id": "mouse_sensitivity", "label": "Mouse sensitivity", "group": "Controls",
+      "slider": { "key": "mouse_sensitivity", "min": 1, "max": 200, "step": 1, "format": "%.0f" },
+      "defaults": { "mouse_sensitivity": "50" }
+    },
+    {
+      "id": "mouse_invert", "label": "Invert mouse", "group": "Controls",
+      "help": "Mouse up looks down.",
+      "choices": [
+        { "label": "Off", "set": { "mouse_invert_y": "0" } },
+        { "label": "On", "set": { "mouse_invert_y": "1" } }
+      ],
+      "defaults": { "mouse_invert_y": "0" }
+    },
+    {
+      "id": "skip_intro", "label": "Skip intro", "group": "Game",
+      "help": "Straight to the title screen, without the logo and legal movies.",
+      "choices": [
+        { "label": "On", "set": { "skip_intro": "1" } },
+        { "label": "Off", "set": { "skip_intro": "0" } }
+      ],
+      "defaults": { "skip_intro": "1" }
+    },
+    {
+      "id": "show_fps", "label": "Show FPS", "group": "Game",
+      "help": "The frame rate in the corner of the game.",
+      "choices": [
+        { "label": "Off", "set": { "show_fps": "0" } },
+        { "label": "On", "set": { "show_fps": "1" } }
+      ],
+      "defaults": { "show_fps": "0" }
+    }
+  ],
+  "actions": [
+    { "id": "open_saves", "label": "Saves", "help": "Your Dark Sector saves.", "open": "saves" },
+    { "id": "open_logs", "label": "Logs", "help": "darksector.log, for bug reports.", "open": "logs" }
+  ]
+}

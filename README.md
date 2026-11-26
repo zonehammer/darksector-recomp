@@ -1,5 +1,7 @@
 # Dark Sector Recompiled
 
+<a href="https://recomplauncher.com"><picture><source media="(prefers-color-scheme: dark)" srcset="https://recomplauncher.com/assets/press/launcher/badge-light.svg"><img alt="Get it on RecompLauncher" src="https://recomplauncher.com/assets/press/launcher/badge-dark.svg" height="48"></picture></a>
+
 A work-in-progress native Windows port of **Dark Sector** (Xbox 360, 2008) made by **static
 recompilation**: the game's PowerPC code is translated to C++ and compiled for x64, then
 run on a small runtime that plays the part of the console. Graphics and audio use
@@ -57,6 +59,14 @@ You need your own Dark Sector disc image (tested with *Dark Sector (Europe)*), o
 
 The launcher's **Check for updates** / **Update now** gets and builds new releases; your
 saves and settings stay.
+
+### With RecompLauncher
+
+Each release has `DarkSectorRecompiled-vX.Y.Z-Windows-x64.zip` with a
+`recomplauncher.json`, so [RecompLauncher](https://recomplauncher.com) can set the game up:
+pick your disc image (or extracted folder), it's checked (title ID `445007D4`), the game is
+built from it in the game's folder (`DS\`), and Play starts it. The settings (resolution,
+frame rate, ultrawide, button prompts and more) are on the game's page.
 
 ## Building by hand
 

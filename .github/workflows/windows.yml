@@ -111,8 +111,31 @@ jobs:
           name: DarkSectorSetup
           path: build/runtime/DarkSectorSetup.exe
 
-      # A release (tag v*) gets DarkSectorSetup.exe attached: it holds nothing from the
-      # game, only the setup that builds from the player's own disc.
+      # The release zip for game launchers (RecompLauncher): Setup as the one
+      # program (--prepare builds from the player's disc, --play starts the game)
+      # with recomplauncher.json beside it. Nothing from the game is in it.
+      - name: Package the release zip
+        if: matrix.toolchain == 'llvm-mingw'
+        shell: pwsh
+        run: |
+          $version = if ($env:GITHUB_REF -like 'refs/tags/v*') { $env:GITHUB_REF_NAME } else { 'v' + (Get-Content VERSION).Trim() }
+          $dir = 'package'
+          New-Item -ItemType Directory -Force $dir | Out-Null
+          Copy-Item build/runtime/DarkSectorSetup.exe "$dir/DarkSectorRecompiled.exe"
+          Copy-Item recomplauncher.json $dir
+          $zip = "DarkSectorRecompiled-$version-Windows-x64.zip"
+          Compress-Archive -Path "$dir/*" -DestinationPath $zip -Force
+          "ZIP=$zip" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Upload the release zip
+        if: matrix.toolchain == 'llvm-mingw'
+        uses: actions/upload-artifact@v4
+        with:
+          name: DarkSectorRecompiled-Windows-x64
+          path: ${{ env.ZIP }}
+
+      # A release (tag v*) gets DarkSectorSetup.exe and the zip attached: they hold
+      # nothing from the game, only the setup that builds from the player's own disc.
       - name: Attach DarkSectorSetup.exe to the release
         if: matrix.toolchain == 'llvm-mingw' && startsWith(github.ref, 'refs/tags/v')
         shell: pwsh
@@ -121,7 +144,7 @@ jobs:
         run: |
           gh release view $env:GITHUB_REF_NAME 2>$null
           if ($LASTEXITCODE -ne 0) { gh release create $env:GITHUB_REF_NAME --title $env:GITHUB_REF_NAME --notes "See the README." }
-          gh release upload $env:GITHUB_REF_NAME build/runtime/DarkSectorSetup.exe --clobber
+          gh release upload $env:GITHUB_REF_NAME build/runtime/DarkSectorSetup.exe $env:ZIP --clobber
 
       - name: Upload recompiler tools
         if: matrix.toolchain == 'llvm-mingw'
