@@ -35,6 +35,9 @@ functions = [
     # three functions, so fills ending in 2-3 odd bytes left 1-2 bytes unwritten
     # (garbled indentation in the save settings and the level-load crash).
     { address = 0x827D6D50, size = 0xA0 },
+    # Ends with an inline jump table (no bounds check, so XenonAnalyse missed it)
+    # followed by its case code: one function up to 0x82C31CDC.
+    { address = 0x82C31BD8, size = 0x104 },
     { address = 0x8219CAB0, size = 0x1D4 },
     { address = 0x821D5838, size = 0xC8 },
     { address = 0x821EDC60, size = 0x68 },
