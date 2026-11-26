@@ -65,7 +65,14 @@ namespace
     uint32_t Reg(uint32_t index) { return Ld32(kGpuRegisterBase + index * 4); }
     void SetReg(uint32_t index, uint32_t v) { St32(kGpuRegisterBase + index * 4, v); }
 
-    constexpr uint64_t kVblankNs = 16666667;
+    // Headless vblank period: 60 Hz, or DS_STANDIN_VBLANK_HZ (to check frame caps
+    // without a GPU; with the renderer, Xenia's vsync uses the options' rate).
+    const uint64_t kVblankNs = []
+    {
+        const char* v = std::getenv("DS_STANDIN_VBLANK_HZ");
+        int hz = v ? std::atoi(v) : 0;
+        return uint64_t(1000000000ull / uint64_t(hz >= 10 && hz <= 1000 ? hz : 60));
+    }();
     uint64_t s_nextVblank = 0;          // GPU thread only
     PPCContext* s_gpuCtx = nullptr;     // the GPU thread's guest context
     GuestThread* s_gpuThread = nullptr;

@@ -87,6 +87,11 @@ namespace wet::options
             // Above 60 the guest's vblank runs faster too (one present per vblank,
             // WetPresentIntervalHook).
             renderer::SetVsyncRate(fps > 60 ? uint32_t(fps) : 60u);
+#elif GAME_DS
+            // Dark Sector presents on every vblank, as fast as it can draw (about
+            // 30 FPS on the console; 60 on a PC with 60 Hz vblanks), and times its
+            // world from the clock. The vblank rate is the cap: 30 by default.
+            renderer::SetVsyncRate(uint32_t(fps));
 #else
             // Conan presents every second vblank (its 30 FPS on the console), so the
             // guest vblank runs at twice the frame rate. Its game timing follows
